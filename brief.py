@@ -21,6 +21,7 @@ SOURCE_LABELS = {
     "ai_news": "AI news",
     "uk_politics": "UK politics",
     "opportunity": "Opportunity",
+    "opportunities": "Opportunities",  # fetcher name, used in failure notes
 }
 
 _loader = FileSystemLoader(str(ROOT / "templates"))

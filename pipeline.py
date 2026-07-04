@@ -9,21 +9,22 @@ import datetime as dt
 import logging
 
 import brief
+import deadlines
 import mailer
 import prefilter
 import rank
 from config import source_cfg, source_enabled
 from models import Item
-from sources import ai_news, arxiv, ft_rss, uk_politics
+from sources import ai_news, arxiv, ft_rss, opportunities, uk_politics
 from store import Store
 from util import local_now, now_utc, to_utc
 
-# Grows as sources land (spec build order, Section 12).
 SOURCE_FETCHERS = {
     "arxiv": arxiv.fetch,
     "ai_news": ai_news.fetch,
     "uk_politics": uk_politics.fetch,
     "ft": ft_rss.fetch,
+    "opportunities": opportunities.fetch,
 }
 
 
@@ -83,6 +84,19 @@ def run_brief(
         len(fetched), len(new_items), len(kept), prefiltered_out,
     )
 
+    # Deadline tracking (spec 6.5): every fetched item with a future deadline
+    # is (re)recorded — including already-seen ones, so an edited manual
+    # deadline propagates even though the item won't be shown again.
+    today = local_now(cfg.get("timezone", "Europe/London")).date()
+    for item in fetched:
+        if item.deadline and item.deadline >= today:
+            store.upsert_deadline(item.external_id, item.title, item.url, item.deadline)
+
+    # Reminders are a morning thing — time-critical, always at the top.
+    reminders = deadlines.collect_reminders(store, cfg, today) if mode == "morning" else []
+    if reminders:
+        logger.info("deadline reminders due: %d", len(reminders))
+
     stats = rank.rank_items(kept, profile, cfg, store, logger)
     cost_note = (
         f"api_calls={stats['api_calls']} cache_hits={stats['cache_hits']}"
@@ -93,7 +107,7 @@ def run_brief(
 
     shown = brief.select_items(kept, cfg, mode)
     footer_lines = brief.build_footer_lines(len(new_items), len(shown), failures, stats)
-    doc = brief.build_brief(mode, shown, cfg, footer_lines=footer_lines)
+    doc = brief.build_brief(mode, shown, cfg, reminders=reminders, footer_lines=footer_lines)
 
     if dry_run:
         mailer.save_fallback(doc["html"], logger)
@@ -117,6 +131,7 @@ def run_brief(
 
     store.mark_seen(new_items)  # everything fetched is now history, shown or not
     store.record_brief_items(run_id, shown)
+    deadlines.mark_sent(store, reminders, today)  # only after a real send
     store.finish_run(
         run_id, "ok",
         items_fetched=len(new_items), items_ranked=len(kept),
