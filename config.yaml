@@ -1,0 +1,128 @@
+# ============================================================================
+# SCOUT — non-secret settings
+#
+# Secrets (API key, email app-password) live in .env — never here.
+# Everything below is safe to commit and safe to edit.
+# ============================================================================
+
+# Documentation only — actual scheduling is via cron (see README).
+run_times:
+  morning: "07:00"
+  evening: "18:00"
+  weekly: "Sun 18:30"
+
+timezone: "Europe/London"
+
+# How many items each brief shows (deadline reminders don't count).
+max_items_morning: 6
+max_items_evening: 4
+
+# Items scoring below this never make a brief.
+min_score_to_show: 45
+
+# On the first ever run there is no "last run" watermark — look back this far.
+first_run_lookback_hours: 24
+
+# Routes to report as "quiet" when they've produced nothing worth showing
+# for a few days (honesty over silent omission).
+quiet_route_reporting: [Founder, FDE, Opportunity]
+quiet_after_days: 3
+
+# Deadline reminders fire at these days-out marks (0 = "closes today" is
+# always included). Reminders surface at the top of the morning brief.
+deadline_reminder_days: [14, 7, 3, 1]
+
+sources:
+  arxiv:
+    enabled: true
+    categories: [cs.AI, cs.LG, cs.CL, cs.CV, cs.MA, cs.RO, cs.AR, cs.SY]
+    daily_cap: 40          # max items sent to ranking per run
+    max_results: 150       # how many recent submissions to pull from the API
+
+  ft:
+    enabled: true
+    # Headlines + standfirsts ONLY — Scout never fetches article bodies.
+    # You read the pieces in your own logged-in FT session.
+    feeds:
+      - "https://www.ft.com/technology?format=rss"
+      - "https://www.ft.com/companies?format=rss"
+      # Markets is a background interest (weight 3) — enable if you want it:
+      # - "https://www.ft.com/markets?format=rss"
+
+  ai_news:
+    enabled: true
+    # Primary sources preferred over aggregators. Anthropic has no official
+    # RSS feed as of writing — FDE coverage comes from the opportunities
+    # source (careers watch) and these primaries. Add a feed URL here if
+    # Anthropic ships one.
+    feeds:
+      - "https://openai.com/news/rss.xml"
+      - "https://deepmind.google/blog/rss.xml"
+      - "https://huggingface.co/blog/feed.xml"
+      - "https://jack-clark.net/feed/"        # Import AI (Jack Clark)
+
+  uk_politics:
+    enabled: true
+    feeds:
+      - "https://feeds.bbci.co.uk/news/politics/rss.xml"
+      - "https://www.theguardian.com/politics/rss"
+    # Hard cap per brief — background context, not a politics newsletter.
+    max_items: 2
+    # Keyword gate: a politics story must hit one of these to even reach
+    # the ranker. Westminster noise never gets ranked.
+    keywords: [tech, technology, startup, start-up, AI, artificial intelligence,
+               regulation, tax, budget, R&D, research, funding, investment,
+               defence, defense, procurement, visa, skilled worker, data,
+               digital, innovation, semiconductor, chips]
+
+  opportunities:
+    enabled: true
+    # Best-effort by design — see README "Honest limits".
+    # Hackathon listing feeds (RSS). Extend with any feed you trust.
+    feeds:
+      - "https://devpost.com/hackathons.rss"
+    # Public Greenhouse job boards to watch (board token, not URL).
+    # Anthropic careers is the minimum per spec — FDE target.
+    greenhouse_boards: [anthropic]
+    # A job title must hit one of these to be picked up.
+    job_keywords: [forward deployed, applied ai, solutions engineer,
+                   ai engineer, solutions architect]
+    # Manual opportunities you're tracking — surfaced once in a brief, then
+    # their deadlines are tracked and reminded on. Dates are YYYY-MM-DD.
+    manual: []
+    #  - title: "Defence Disrupted (registered)"
+    #    url: "https://www.defencedisrupted.com"
+    #    deadline: "2026-10-15"   # set the real date when you know it
+    #    notes: "Already registered — October event."
+    #  - title: "Project Europe interview"
+    #    url: "https://www.projecteurope.co"
+    #    deadline: "2026-07-20"
+    #    notes: "Invited to interview. Under-25 founders, EUR 10M fund."
+
+ranking:
+  # Fast, cheap Claude model for scoring. Switch to a stronger model
+  # (e.g. claude-sonnet-5) if you want sharper judgement — costs more.
+  model: "claude-haiku-4-5"
+  # One Anthropic call per week for the Sunday digest — worth a stronger
+  # model. Falls back to `model` if unset.
+  weekly_model: "claude-sonnet-5"
+  batch_size: 10           # items scored per API call
+  max_summary_chars: 1200  # truncate abstracts before sending to the API
+  # Cheap keyword cut before any API spend. An arXiv item must hit one of
+  # these in its title/abstract to reach the ranking stage.
+  prefilter_keywords: [agent, agentic, LLM, edge, on-device, inference,
+                       quantization, distillation, multi-agent, retrieval,
+                       evaluation, deployment, robotics, embedded, vision,
+                       RL, tool use, reasoning, fine-tune]
+  # $/1M tokens for the run-cost estimate in the logs (claude-haiku-4-5).
+  # Update if you change model.
+  price_per_mtok_input: 1.00
+  price_per_mtok_output: 5.00
+
+export:
+  # How many days of briefs go into scout_context.md. Keep it paste-sized.
+  window_days: 7
+
+mailer:
+  smtp_host: "smtp.gmail.com"
+  smtp_port: 587
