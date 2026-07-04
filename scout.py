@@ -67,7 +67,11 @@ def main(argv: list[str] | None = None) -> int:
                 args.mode, cfg, profile, secrets, store, logger,
                 force=args.force, dry_run=args.dry_run,
             )
-        # weekly and export are wired up in later build steps (spec Section 12).
+        if args.mode == "export":
+            import export
+
+            return export.run_export(cfg, profile, store, logger)
+        # weekly is wired up in a later build step (spec Section 12).
         logger.info("mode %r not implemented yet", args.mode)
         return 0
     except Exception:
