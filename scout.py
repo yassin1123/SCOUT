@@ -60,7 +60,14 @@ def main(argv: list[str] | None = None) -> int:
     store = Store(ROOT / "data" / "scout.db")
     try:
         logger.info("scout %s starting%s", args.mode, " (dry-run)" if args.dry_run else "")
-        # Modes are wired up in later build steps (spec Section 12).
+        if args.mode in ("morning", "evening"):
+            import pipeline
+
+            return pipeline.run_brief(
+                args.mode, cfg, profile, secrets, store, logger,
+                force=args.force, dry_run=args.dry_run,
+            )
+        # weekly and export are wired up in later build steps (spec Section 12).
         logger.info("mode %r not implemented yet", args.mode)
         return 0
     except Exception:
