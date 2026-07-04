@@ -8,6 +8,8 @@ from __future__ import annotations
 import datetime as dt
 import logging
 
+import brief
+import mailer
 import prefilter
 import rank
 from config import source_cfg, source_enabled
@@ -30,9 +32,10 @@ def _local_midnight_utc(cfg: dict) -> dt.datetime:
 
 def fetch_all(
     cfg: dict, store: Store, logger: logging.Logger, since: dt.datetime
-) -> list[Item]:
-    """Pull every enabled source. Failures are recorded, not fatal."""
+) -> tuple[list[Item], list[tuple[str, str]]]:
+    """Pull every enabled source. Failures are recorded and reported, not fatal."""
     items: list[Item] = []
+    failures: list[tuple[str, str]] = []
     for name, fetcher in SOURCE_FETCHERS.items():
         if not source_enabled(cfg, name):
             continue
@@ -42,9 +45,11 @@ def fetch_all(
             store.record_source_ok(name)
             logger.info("source %-12s fetched %d items", name, len(fetched))
         except Exception as exc:  # noqa: BLE001 — a broken source must not kill the run
-            store.record_source_error(name, f"{type(exc).__name__}: {exc}")
+            error = f"{type(exc).__name__}: {exc}"
+            store.record_source_error(name, error)
+            failures.append((name, type(exc).__name__))
             logger.warning("source %-12s FAILED: %s", name, exc)
-    return items
+    return items, failures
 
 
 def run_brief(
@@ -67,7 +72,7 @@ def run_brief(
     since = store.last_fetch_time() or (now_utc() - lookback)
     logger.info("fetching everything since %s", since.isoformat(timespec="seconds"))
 
-    fetched = fetch_all(cfg, store, logger, since)
+    fetched, failures = fetch_all(cfg, store, logger, since)
     new_items = store.filter_unseen(fetched)
     kept, prefiltered_out = prefilter.apply(new_items, cfg)
     logger.info(
@@ -83,17 +88,36 @@ def run_brief(
     )
     logger.info("ranking: %s", cost_note)
 
-    # Assembly and delivery are wired in the next build steps.
-    for item in sorted(kept, key=lambda i: i.score, reverse=True):
-        print(f"{item.score:>3} [{item.route_tag or '-'}] {item.title}\n"
-              f"      {item.why}\n      {item.url}")
+    shown = brief.select_items(kept, cfg, mode)
+    footer_lines = brief.build_footer_lines(len(new_items), len(shown), failures, stats)
+    doc = brief.build_brief(mode, shown, cfg, footer_lines=footer_lines)
 
+    if dry_run:
+        mailer.save_fallback(doc["html"], logger)
+        logger.info("dry-run: would send %r with %d items", doc["subject"], len(shown))
+        store.finish_run(
+            run_id, "dry-run",
+            items_fetched=len(new_items), items_ranked=len(kept),
+            items_sent=len(shown), notes=cost_note,
+        )
+        return 0
+
+    sent = mailer.send_brief(doc["subject"], doc["html"], doc["text"], secrets, cfg, logger)
+    if not sent:
+        # Items stay un-seen so they come back next run — nothing is lost.
+        store.finish_run(
+            run_id, "error",
+            items_fetched=len(new_items), items_ranked=len(kept),
+            items_sent=0, notes=cost_note + "; send failed",
+        )
+        return 1
+
+    store.mark_seen(new_items)  # everything fetched is now history, shown or not
+    store.record_brief_items(run_id, shown)
     store.finish_run(
-        run_id,
-        status="dry-run",  # becomes 'ok' once delivery lands — watermark untouched until then
-        items_fetched=len(new_items),
-        items_ranked=len(kept),
-        items_sent=0,
-        notes=cost_note,
+        run_id, "ok",
+        items_fetched=len(new_items), items_ranked=len(kept),
+        items_sent=len(shown), notes=cost_note,
     )
+    logger.info("%s brief delivered: %d items shown", mode, len(shown))
     return 0
