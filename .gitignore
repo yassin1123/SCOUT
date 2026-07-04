@@ -1,0 +1,19 @@
+# Secrets — never commit. .env holds the API key and email app-password.
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+
+# Runtime state (created on first run)
+data/*
+!data/.gitkeep
+logs/*
+!logs/.gitkeep
+
+# Generated context bundle (rebuild with `python scout.py export`)
+scout_context.md
