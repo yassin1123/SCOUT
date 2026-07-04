@@ -232,6 +232,13 @@ class Store:
         )
         self.db.commit()
 
+    def first_ok_run_at(self) -> dt.datetime | None:
+        row = self.db.execute(
+            "SELECT MIN(started_at) AS t FROM runs"
+            " WHERE mode IN ('morning', 'evening') AND status = 'ok'"
+        ).fetchone()
+        return from_iso(row["t"]) if row and row["t"] else None
+
     def last_shown_for_route(self, route_tag: str) -> dt.datetime | None:
         row = self.db.execute(
             "SELECT MAX(sent_at) AS t FROM brief_items WHERE route_tag = ?", (route_tag,)

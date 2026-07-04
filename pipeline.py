@@ -106,8 +106,12 @@ def run_brief(
     logger.info("ranking: %s", cost_note)
 
     shown = brief.select_items(kept, cfg, mode)
+    quiet_lines = brief.quiet_route_lines(shown, store, cfg) if mode == "morning" else []
     footer_lines = brief.build_footer_lines(len(new_items), len(shown), failures, stats)
-    doc = brief.build_brief(mode, shown, cfg, reminders=reminders, footer_lines=footer_lines)
+    doc = brief.build_brief(
+        mode, shown, cfg,
+        reminders=reminders, quiet_lines=quiet_lines, footer_lines=footer_lines,
+    )
 
     # The evening email always carries a fresh context bundle (spec 8.2), so
     # a current mentor snapshot is always one inbox search away.

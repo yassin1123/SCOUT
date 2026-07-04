@@ -92,6 +92,30 @@ def day_read(chosen: list[Item], cfg: dict, mode: str) -> str:
     return line
 
 
+def quiet_route_lines(shown: list[Item], store, cfg: dict) -> list[str]:
+    """The honesty line (spec 8.1): if a route the user cares about has shown
+    nothing for days, say so explicitly instead of silently omitting it."""
+    routes = cfg.get("quiet_route_reporting") or []
+    threshold = int(cfg.get("quiet_after_days", 3))
+    first_run = store.first_ok_run_at()
+    now = dt.datetime.now(dt.timezone.utc)
+    if first_run is None or (now - first_run).days < threshold:
+        return []  # too early to call anything quiet
+    shown_tags = {i.route_tag for i in shown}
+    lines = []
+    for tag in routes:
+        if tag in shown_tags:
+            continue
+        last = store.last_shown_for_route(tag)
+        if last is None:
+            lines.append(f"Nothing on the {tag} front yet.")
+            continue
+        days = (now - last).days
+        if days >= threshold:
+            lines.append(f"Nothing on the {tag} front for {days} days now.")
+    return lines
+
+
 def build_footer_lines(
     new_count: int, shown_count: int, failing: list[tuple[str, str]], rank_stats: dict | None
 ) -> list[str]:
