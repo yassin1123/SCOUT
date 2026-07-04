@@ -1,0 +1,31 @@
+SCOUT {{ mode_label }} — {{ date_str }}
+
+{{ day_read }}
+{% if reminders %}
+DEADLINES
+{% for r in reminders %}  ! {{ r.title }} — {{ r.line }}{% if r.url %} <{{ r.url }}>{% endif %}
+{% endfor %}{% endif %}
+{%- for tag, group in groups %}
+
+== {{ tag|upper }} ==
+{% for item in group %}
+* {{ item.title }}  [{{ item.score }}]
+  {{ item.why }}
+  {{ item.url }}
+  ({{ item.source_label }} · {{ item.date }})
+{% endfor %}
+{%- endfor %}
+{% if not groups and quiet_body %}
+{{ quiet_body }}
+{% endif %}
+{%- if quiet_lines %}
+
+{% for q in quiet_lines %}{{ q }}
+{% endfor %}
+{%- endif %}
+{%- if footer_lines %}
+
+--
+{% for f in footer_lines %}{{ f }}
+{% endfor %}
+{%- endif %}
