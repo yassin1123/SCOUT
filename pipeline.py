@@ -14,13 +14,15 @@ import prefilter
 import rank
 from config import source_cfg, source_enabled
 from models import Item
-from sources import arxiv
+from sources import ai_news, arxiv, uk_politics
 from store import Store
 from util import local_now, now_utc, to_utc
 
 # Grows as sources land (spec build order, Section 12).
 SOURCE_FETCHERS = {
     "arxiv": arxiv.fetch,
+    "ai_news": ai_news.fetch,
+    "uk_politics": uk_politics.fetch,
 }
 
 
