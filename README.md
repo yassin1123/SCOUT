@@ -76,8 +76,9 @@ cents).
 
 ## Schedule it
 
-`crontab -e` and add exactly three lines (times are yours to change; the
-server timezone is already Europe/London from setup):
+`crontab deploy/scout.crontab` installs the schedule in one command — or
+`crontab -e` and add exactly these three lines (times are yours to change;
+the server timezone is already Europe/London from setup):
 
 ```cron
 0 7 * * *   cd /opt/scout && /opt/scout/venv/bin/python scout.py morning

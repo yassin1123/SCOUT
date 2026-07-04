@@ -1,0 +1,11 @@
+# Scout schedule — install with:  crontab deploy/scout.crontab
+# (or paste these three lines into `crontab -e`)
+#
+# Times are local to the server; set the box to your timezone first:
+#   sudo timedatectl set-timezone Europe/London
+#
+# Adjust paths if you didn't install to /opt/scout.
+
+0 7 * * *   cd /opt/scout && /opt/scout/venv/bin/python scout.py morning
+0 18 * * *  cd /opt/scout && /opt/scout/venv/bin/python scout.py evening
+30 18 * * 0 cd /opt/scout && /opt/scout/venv/bin/python scout.py weekly
