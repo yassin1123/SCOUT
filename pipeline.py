@@ -9,6 +9,7 @@ import datetime as dt
 import logging
 
 import prefilter
+import rank
 from config import source_cfg, source_enabled
 from models import Item
 from sources import arxiv
@@ -74,9 +75,18 @@ def run_brief(
         len(fetched), len(new_items), len(kept), prefiltered_out,
     )
 
-    # Ranking, assembly and delivery are wired in the next build steps.
-    for item in sorted(kept, key=lambda i: i.published, reverse=True):
-        print(f"[{item.source}] {item.title}\n    {item.url}")
+    stats = rank.rank_items(kept, profile, cfg, store, logger)
+    cost_note = (
+        f"api_calls={stats['api_calls']} cache_hits={stats['cache_hits']}"
+        f" tokens_in={stats['input_tokens']} tokens_out={stats['output_tokens']}"
+        f" est_cost=${stats['cost_usd']:.4f} failed={stats['failed_items']}"
+    )
+    logger.info("ranking: %s", cost_note)
+
+    # Assembly and delivery are wired in the next build steps.
+    for item in sorted(kept, key=lambda i: i.score, reverse=True):
+        print(f"{item.score:>3} [{item.route_tag or '-'}] {item.title}\n"
+              f"      {item.why}\n      {item.url}")
 
     store.finish_run(
         run_id,
@@ -84,5 +94,6 @@ def run_brief(
         items_fetched=len(new_items),
         items_ranked=len(kept),
         items_sent=0,
+        notes=cost_note,
     )
     return 0
