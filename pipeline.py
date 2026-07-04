@@ -14,7 +14,7 @@ import prefilter
 import rank
 from config import source_cfg, source_enabled
 from models import Item
-from sources import ai_news, arxiv, uk_politics
+from sources import ai_news, arxiv, ft_rss, uk_politics
 from store import Store
 from util import local_now, now_utc, to_utc
 
@@ -23,6 +23,7 @@ SOURCE_FETCHERS = {
     "arxiv": arxiv.fetch,
     "ai_news": ai_news.fetch,
     "uk_politics": uk_politics.fetch,
+    "ft": ft_rss.fetch,
 }
 
 
