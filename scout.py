@@ -67,13 +67,16 @@ def main(argv: list[str] | None = None) -> int:
                 args.mode, cfg, profile, secrets, store, logger,
                 force=args.force, dry_run=args.dry_run,
             )
-        if args.mode == "export":
-            import export
+        if args.mode == "weekly":
+            import pipeline
 
-            return export.run_export(cfg, profile, store, logger)
-        # weekly is wired up in a later build step (spec Section 12).
-        logger.info("mode %r not implemented yet", args.mode)
-        return 0
+            return pipeline.run_weekly(
+                cfg, profile, secrets, store, logger,
+                force=args.force, dry_run=args.dry_run,
+            )
+        import export
+
+        return export.run_export(cfg, profile, store, logger)
     except Exception:
         logger.exception("unhandled error in %s run", args.mode)
         return 1

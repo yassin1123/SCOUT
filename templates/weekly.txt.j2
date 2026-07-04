@@ -1,0 +1,24 @@
+SCOUT — WEEK OF {{ week_of|upper }}
+
+{{ week_read }}
+{% for title, bullets in sections %}
+{% if bullets %}
+== {{ title|upper }} ==
+{% for b in bullets %}* {{ b }}
+{% endfor %}
+{% endif %}
+{% endfor %}
+{%- if top_per_route %}
+== MOST IMPORTANT PER ROUTE ==
+{% for t in top_per_route %}[{{ t.route }}] {{ t.title }}
+  {{ t.why }}
+{% endfor %}
+{%- endif %}
+{% if deadline_note %}
+! {{ deadline_note }}
+{% endif %}
+{%- if footer_lines %}
+--
+{% for f in footer_lines %}{{ f }}
+{% endfor %}
+{%- endif %}

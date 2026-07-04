@@ -156,3 +156,24 @@ def build_brief(
         "html": _html_env.get_template("brief.html.j2").render(**context),
         "text": _text_env.get_template("brief.txt.j2").render(**context),
     }
+
+
+def build_weekly(data: dict, week_of: str, cfg: dict, footer_lines: list[str]) -> dict:
+    """The Sunday digest — synthesis, not a re-list (spec 8.3)."""
+    context = {
+        "week_of": week_of,
+        "week_read": data.get("week_read") or "The week, synthesised.",
+        "sections": [
+            ("Recurring threads", data.get("threads") or []),
+            ("Building momentum", data.get("momentum") or []),
+            ("State of your routes", data.get("route_state") or []),
+        ],
+        "top_per_route": data.get("top_per_route") or [],
+        "deadline_note": data.get("deadline_note") or "",
+        "footer_lines": footer_lines or [],
+    }
+    return {
+        "subject": f"Scout — Week of {week_of} — the pattern",
+        "html": _html_env.get_template("weekly.html.j2").render(**context),
+        "text": _text_env.get_template("weekly.txt.j2").render(**context),
+    }

@@ -258,3 +258,94 @@ def rank_items(
         stats["input_tokens"] / 1e6 * price_in + stats["output_tokens"] / 1e6 * price_out, 4
     )
     return stats
+
+
+# --------------------------------------------------------------------- weekly
+
+WEEKLY_SYSTEM_TEMPLATE = """\
+You are the weekly synthesis engine inside Scout, a private intelligence \
+brief serving exactly one person. Their profile:
+
+=== PROFILE ===
+{profile_md}
+=== END PROFILE ===
+
+The Sunday digest is a SYNTHESIS, not a re-list: daily is signal, weekly is \
+pattern. You get everything Scout showed them this week (route tags, scores, \
+why-lines) plus upcoming deadlines. Be blunt, direct, no fluff, second \
+person, no hype. Honesty over encouragement — a quiet route is called quiet.
+
+Return a STRICT JSON object only — no prose, no markdown fences:
+{{
+  "week_read": "one blunt sentence — the read of the week",
+  "threads": ["2-4 bullets — recurring threads in their lanes this week"],
+  "momentum": ["1-3 bullets — topics accelerating across multiple items; [] if none"],
+  "top_per_route": [{{"route": "...", "title": "...", "why": "one sentence"}}],
+  "route_state": ["one bullet per route that matters (Founder, FDE, Startup, Opportunity): strong or quiet, with one clause of texture"],
+  "deadline_note": "one sentence if anything closes in the next two weeks, else \\"\\""
+}}
+Only include a route in top_per_route when something genuinely important \
+appeared for it.
+"""
+
+
+def parse_json_object(text: str) -> dict:
+    text = text.strip()
+    text = re.sub(r"^```(?:json)?\s*", "", text)
+    text = re.sub(r"\s*```$", "", text)
+    start, end = text.find("{"), text.rfind("}")
+    if start == -1 or end <= start:
+        raise ValueError("no JSON object in model output")
+    data = json.loads(text[start : end + 1])
+    if not isinstance(data, dict):
+        raise ValueError("model output is not a JSON object")
+    return data
+
+
+def synthesize_week(
+    week_rows: list[dict], deadline_rows: list[dict], profile: dict, cfg: dict,
+    logger: logging.Logger, stats: dict,
+) -> dict | None:
+    """One API call over the week's stored items — the highest-value mentor
+    touch in the email product. Returns None on failure; the caller falls
+    back to a deterministic digest and says so."""
+    rcfg = cfg.get("ranking") or {}
+    model = rcfg.get("weekly_model") or rcfg.get("model", "claude-haiku-4-5")
+    system_prompt = WEEKLY_SYSTEM_TEMPLATE.format(profile_md=profile_to_markdown(profile))
+    payload = json.dumps(
+        {"items_shown_this_week": week_rows, "upcoming_deadlines": deadline_rows},
+        ensure_ascii=False,
+    )
+    try:
+        import anthropic
+
+        client = anthropic.Anthropic()
+    except Exception as exc:  # noqa: BLE001
+        logger.error("cannot create Anthropic client for weekly digest: %s", exc)
+        return None
+
+    for attempt in (1, 2):
+        try:
+            response = client.messages.create(
+                model=model,
+                max_tokens=1500,
+                system=system_prompt,
+                messages=[{"role": "user", "content": payload}],
+            )
+            stats["api_calls"] += 1
+            stats["input_tokens"] += response.usage.input_tokens
+            stats["output_tokens"] += response.usage.output_tokens
+            text = "".join(b.text for b in response.content if b.type == "text")
+            data = parse_json_object(text)
+            data.setdefault("week_read", "")
+            for key in ("threads", "momentum", "top_per_route", "route_state"):
+                if not isinstance(data.get(key), list):
+                    data[key] = []
+            data["deadline_note"] = str(data.get("deadline_note", "")).strip()
+            return data
+        except Exception as exc:  # noqa: BLE001
+            logger.warning(
+                "weekly synthesis failure (attempt %d/2): %s: %s",
+                attempt, type(exc).__name__, exc,
+            )
+    return None

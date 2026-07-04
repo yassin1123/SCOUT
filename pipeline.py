@@ -155,3 +155,120 @@ def run_brief(
     )
     logger.info("%s brief delivered: %d items shown", mode, len(shown))
     return 0
+
+
+# --------------------------------------------------------------------- weekly
+
+def _deadline_sentence(deadline_rows: list[dict]) -> str:
+    if not deadline_rows:
+        return ""
+    bits = []
+    for row in deadline_rows:
+        closes = dt.date.fromisoformat(row["closes"])
+        bits.append(f"{row['title']} ({closes.day} {closes:%b})")
+    return "Closing in the next two weeks: " + "; ".join(bits) + "."
+
+
+def _fallback_weekly(week_rows: list[dict], deadline_rows: list[dict]) -> dict:
+    """Deterministic digest when the synthesis call fails or the week is empty."""
+    if not week_rows:
+        return {
+            "week_read": "Quiet week — nothing cleared the bar.",
+            "threads": [], "momentum": [], "top_per_route": [], "route_state": [],
+            "deadline_note": _deadline_sentence(deadline_rows),
+        }
+    best: dict[str, dict] = {}
+    counts: dict[str, int] = {}
+    for row in week_rows:
+        counts[row["route"]] = counts.get(row["route"], 0) + 1
+        if row["route"] not in best or row["score"] > best[row["route"]]["score"]:
+            best[row["route"]] = row
+    return {
+        "week_read": f"{len(week_rows)} items made your briefs this week.",
+        "threads": [],
+        "momentum": [],
+        "top_per_route": [
+            {"route": tag, "title": row["title"], "why": row["why"]}
+            for tag, row in best.items()
+        ],
+        "route_state": [
+            f"{tag}: {n} item{'s' if n != 1 else ''} this week." for tag, n in counts.items()
+        ],
+        "deadline_note": _deadline_sentence(deadline_rows),
+    }
+
+
+def run_weekly(
+    cfg: dict,
+    profile: dict,
+    secrets: dict,
+    store: Store,
+    logger: logging.Logger,
+    force: bool = False,
+    dry_run: bool = False,
+) -> int:
+    if not force and store.ran_ok_since("weekly", now_utc() - dt.timedelta(days=6)):
+        logger.info("weekly digest already sent this week — skipping (use --force)")
+        return 0
+
+    run_id = store.start_run("weekly")
+    tz = cfg.get("timezone", "Europe/London")
+    today = local_now(tz).date()
+    rows = store.items_shown_since(now_utc() - dt.timedelta(days=7))
+    week_rows = [
+        {
+            "title": r["title"], "route": r["route_tag"], "score": r["score"],
+            "why": r["why"], "source": r["source"],
+            "day": r["sent_at"][:10],
+        }
+        for r in rows
+    ]
+    deadline_rows = []
+    for row in store.unexpired_deadlines(today):
+        closes = dt.date.fromisoformat(row["deadline_date"])
+        if (closes - today).days <= 14:
+            deadline_rows.append({"title": row["title"], "closes": closes.isoformat()})
+
+    stats = {"api_calls": 0, "input_tokens": 0, "output_tokens": 0}
+    footer: list[str] = []
+    data = (
+        rank.synthesize_week(week_rows, deadline_rows, profile, cfg, logger, stats)
+        if week_rows
+        else None
+    )
+    if data is None:
+        data = _fallback_weekly(week_rows, deadline_rows)
+        if week_rows:
+            footer.append(
+                "Synthesis unavailable this week (API trouble) — deterministic digest instead."
+            )
+
+    monday = today - dt.timedelta(days=today.weekday())
+    week_of = f"{monday.day} {monday:%b}"
+    doc = brief.build_weekly(data, week_of, cfg, footer)
+
+    rcfg = cfg.get("ranking") or {}
+    cost = (
+        stats["input_tokens"] / 1e6 * float(rcfg.get("price_per_mtok_input", 1.0))
+        + stats["output_tokens"] / 1e6 * float(rcfg.get("price_per_mtok_output", 5.0))
+    )
+    cost_note = (
+        f"weekly synthesis: api_calls={stats['api_calls']}"
+        f" tokens_in={stats['input_tokens']} tokens_out={stats['output_tokens']}"
+        f" est_cost=${cost:.4f}"
+    )
+    logger.info(cost_note)
+
+    if dry_run:
+        mailer.save_fallback(doc["html"], logger)
+        logger.info("dry-run: would send %r", doc["subject"])
+        store.finish_run(run_id, "dry-run", items_sent=0, notes=cost_note)
+        return 0
+
+    sent = mailer.send_brief(doc["subject"], doc["html"], doc["text"], secrets, cfg, logger)
+    store.finish_run(
+        run_id, "ok" if sent else "error",
+        items_sent=len(week_rows) if sent else 0,
+        notes=cost_note if sent else cost_note + "; send failed",
+    )
+    return 0 if sent else 1
