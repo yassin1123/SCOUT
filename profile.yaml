@@ -1,0 +1,113 @@
+# ============================================================================
+# SCOUT — user profile
+#
+# This file is the single most important input to Scout. Every ranking
+# decision is made RELATIVE to what's written here. It is loaded into the
+# ranking prompt on every run.
+#
+# Edit freely — no code changes needed. Keep it honest: Scout is only as
+# sharp as this profile. When your situation changes (new role, new project,
+# a route closes), update this file.
+# ============================================================================
+
+identity:
+  summary: >
+    Final-year BEng Electronic Engineering student at the University of
+    Southampton. Currently on a summer internship at Accenture (London),
+    Data & AI stream, working as an AI developer on a client project —
+    ranked first in cohort. Also Project Manager at Blackmont Consulting
+    and a role at Veradex. British; fluent English and Arabic; based in
+    and around London.
+  communication_style: >
+    Casual, direct, blunt, no fluff. Write to them like a sharp friend who
+    knows their career, not a newsletter.
+
+north_star: >
+  Become a founder. The path is deliberately open — Scout must respect the
+  open path rather than optimise for one route.
+
+routes:
+  - name: Accenture-first
+    detail: >
+      Stay at Accenture post-internship for a while (financial cover,
+      ecosystem embedding, CV de-risking), then leave for a startup or to
+      found at the 18-24 month mark.
+  - name: Startup-employee
+    detail: >
+      Leave after the internship to join a high-quality early-stage startup,
+      learn the 0-to-1 game from inside, found later.
+  - name: Straight-in
+    detail: >
+      Go directly toward founding now, e.g. via Project Europe (Harry
+      Stebbings' EUR 10M fund for under-25 founders — invited to interview)
+      or equivalent.
+
+supporting_route:
+  name: Frontier AI applied roles — Anthropic Forward Deployed Engineer (FDE)
+  detail: >
+    Secondary, real-but-lower-priority. Not in tension with the founder goal:
+    FDE and founder share a skill base, and an FDE stint is a legitimate
+    on-ramp. Treat as a supporting route, not a competing one. Anthropic
+    items get a small ranking boost because of this target.
+
+background_interests: >
+  Financial markets (has an FT subscription, follows markets). PE/IB as a
+  historical parallel ambition — largely superseded by the AI/founder
+  direction, but not dead. Track lightly, never centre.
+
+content_universe: >
+  AI and technology, broadly: papers, product releases, advancements,
+  industry news, hackathons, jobs and opportunities — filtered to what
+  serves the founder north star and its routes. Plus one or two genuinely
+  important UK politics pieces per brief, filtered hard to policy that
+  actually touches tech, startups, funding, defence, or AI regulation.
+
+portfolio:
+  - "Argus — autonomous multi-agent research/decision engine (Python, FastAPI,
+    Postgres, Redis, React/Next.js, OpenAI). Shipped solo to ~150 users at
+    180DC Southampton."
+  - "Vigil — offline edge-AI vision system on a Jetson Orin Nano (YOLOv8-nano,
+    INT8 via TensorRT, ByteTrack, OpenCV). Defence context; DASA / NATO DIANA
+    interest."
+  - "Substrate / Tracer — AI system for reasoning about hardware schematics;
+    defence context."
+  - "ZENITH — premium connected desk instrument (live global air traffic on a
+    round screen, companion app, subscription model)."
+  - "Agora — consumer AI debate product (archetype fighters, tiered
+    monetisation)."
+  - "Hackathon wins: AMD (2nd of 100+, Pervasive AI Contest), BAE Systems
+    (1st, Hack the Future)."
+  - "Built and sold a product solo for real returns."
+  - "Registered for Defence Disrupted (October)."
+
+# Proven lanes — items touching these rank higher. Items in these lanes that
+# ALSO carry an opportunity (hackathon, job, fundable wedge) rank highest.
+lanes:
+  - edge / on-device AI
+  - multi-agent systems
+  - applied AI products
+  - defence tech
+  - hardware-software integration
+
+constraints:
+  - >
+    57 average grade — a known CV filter weakness. Opportunities with hard
+    grade cutoffs must be flagged honestly, never hidden. Do not cheerlead
+    past real filters.
+  - >
+    No Accenture data, ever. Scout never ingests, requests, or stores any
+    Accenture internal information. Reason about the Accenture-as-a-route
+    strategy only from this profile. Hard rule.
+
+# ----------------------------------------------------------------------------
+# Goal weights (0-10) — tunable. These feed the ranking prompt directly.
+# An item serving `founder` matters more than one serving `pe_ib`.
+# Do not hardcode priorities anywhere else.
+# ----------------------------------------------------------------------------
+goal_weights:
+  founder: 10          # north star
+  startup_employee: 7  # a route to founder
+  accenture_route: 5   # a route to founder (financial cover)
+  fde_anthropic: 7     # supporting route, frontier AI
+  markets: 3           # background interest
+  pe_ib: 1             # legacy, lightly tracked
