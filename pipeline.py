@@ -109,6 +109,19 @@ def run_brief(
     footer_lines = brief.build_footer_lines(len(new_items), len(shown), failures, stats)
     doc = brief.build_brief(mode, shown, cfg, reminders=reminders, footer_lines=footer_lines)
 
+    # The evening email always carries a fresh context bundle (spec 8.2), so
+    # a current mentor snapshot is always one inbox search away.
+    attachments = []
+    if mode == "evening":
+        try:
+            import export
+
+            bundle = export.build_context(cfg, profile, store)
+            export.OUTPUT_PATH.write_text(bundle, encoding="utf-8")
+            attachments.append(("scout_context.md", bundle.encode("utf-8"), "text", "markdown"))
+        except Exception:  # noqa: BLE001 — the brief still goes out without it
+            logger.exception("could not build context bundle for the evening email")
+
     if dry_run:
         mailer.save_fallback(doc["html"], logger)
         logger.info("dry-run: would send %r with %d items", doc["subject"], len(shown))
@@ -119,7 +132,10 @@ def run_brief(
         )
         return 0
 
-    sent = mailer.send_brief(doc["subject"], doc["html"], doc["text"], secrets, cfg, logger)
+    sent = mailer.send_brief(
+        doc["subject"], doc["html"], doc["text"], secrets, cfg, logger,
+        attachments=attachments,
+    )
     if not sent:
         # Items stay un-seen so they come back next run — nothing is lost.
         store.finish_run(
