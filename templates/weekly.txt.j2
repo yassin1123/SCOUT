@@ -8,9 +8,9 @@ SCOUT — WEEK OF {{ week_of|upper }}
 {% endfor %}
 {% endif %}
 {% endfor %}
-{%- if top_per_route %}
-== MOST IMPORTANT PER ROUTE ==
-{% for t in top_per_route %}[{{ t.route }}] {{ t.title }}
+{%- if top_items %}
+== BEST OF THE WEEK ==
+{% for t in top_items %}[{{ t.section }}] {{ t.title }}
   {{ t.why }}
 {% endfor %}
 {%- endif %}

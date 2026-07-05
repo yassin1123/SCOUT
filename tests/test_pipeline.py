@@ -44,9 +44,7 @@ def _scoring_client():
         resp.usage.input_tokens, resp.usage.output_tokens = 500, 100
         block = MagicMock()
         block.type = "text"
-        block.text = json.dumps(
-            [{"external_id": i, "score": 70, "route_tag": "Founder", "why": "w"} for i in ids]
-        )
+        block.text = json.dumps([{"external_id": i, "score": 70, "why": "w"} for i in ids])
         resp.content = [block]
         return resp
 
@@ -70,11 +68,11 @@ def test_morning_then_evening_delta(cfg, profile, store):
         # idempotency: no second morning today
         assert pipeline.run_brief("morning", cfg, profile, SECRETS, store, log) == 0
         assert len(FakeSMTP.sent) == 1
-        # evening sees nothing new -> quiet one-liner with context bundle attached
+        # evening sees nothing new -> quiet one-liner, and no attachments of any kind
         assert pipeline.run_brief("evening", cfg, profile, SECRETS, store, log) == 0
         assert "quiet since this morning" in FakeSMTP.sent[1]["Subject"]
         names = [p.get_filename() for p in FakeSMTP.sent[1].walk() if p.get_filename()]
-        assert names == ["scout_context.md"]
+        assert names == []
 
 
 def test_failed_send_keeps_items_unseen(cfg, profile, store):
@@ -105,7 +103,7 @@ def test_morning_reminder_flow(cfg, profile, store):
     cfg["sources"] = {
         "opportunities": {
             "enabled": True, "feeds": [], "greenhouse_boards": [],
-            "manual": [{"title": "Defence Disrupted", "url": "https://dd",
+            "manual": [{"title": "Some Hackathon", "url": "https://hack.example",
                         "deadline": (today + dt.timedelta(days=7)).isoformat()}],
         }
     }
@@ -120,16 +118,16 @@ def test_morning_reminder_flow(cfg, profile, store):
 def test_weekly_synthesis_and_fallback(cfg, profile, store):
     FakeSMTP.sent = []
     cfg = copy.deepcopy(cfg)
-    items = [make_item(f"w{i}", score=60 + i, route_tag="Founder", why=f"why {i}") for i in range(3)]
+    items = [make_item(f"w{i}", score=60 + i, why=f"why {i}") for i in range(3)]
     store.mark_seen(items)
     for i in items:
-        store.save_score(i.external_id, i.score, i.route_tag, i.why)
+        store.save_score(i.external_id, i.score, i.section, i.why)
     rid = store.start_run("morning")
     store.finish_run(rid, "ok")
     store.record_brief_items(rid, items)
 
     synth = {"week_read": "Edge heating up.", "threads": ["t"], "momentum": [],
-             "top_per_route": [], "route_state": ["Founder: strong."], "deadline_note": ""}
+             "top_items": [], "deadline_note": ""}
     resp = MagicMock()
     resp.usage.input_tokens, resp.usage.output_tokens = 900, 250
     block = MagicMock()

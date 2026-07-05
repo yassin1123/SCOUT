@@ -2,16 +2,18 @@
 
 Scout is a personal intelligence service that reads the AI/tech world for you
 twice a day — arXiv, AI-industry news, FT headlines, hard-filtered UK politics,
-hackathons and jobs — ranks every item against *your* career profile with the
-Anthropic API, and emails you a short brief that says why each item matters to
-you specifically. It never repeats itself, tracks opportunity deadlines and
-reminds you as they approach, sends a synthesis digest on Sunday evenings, and
-can export your full context as one Markdown file so any Claude chat becomes a
-mentor that already knows everything.
+hackathons and jobs — ranks every item against a plain **interest list** with
+the Anthropic API, and emails you a short brief with one neutral line per item
+on what it is and why it's notable. It never repeats itself, tracks opportunity
+deadlines and reminds you as they approach, and sends a synthesis digest on
+Sunday evenings.
 
-One sentence: *read the AI/tech world for me twice a day, tell me the handful
-of things that matter to my career, tell me why each matters to me, and let me
-talk to a mentor that has my whole context whenever I want.*
+One sentence: *read the AI/tech world for me twice a day and show me the
+handful of things worth my time.*
+
+By design it knows nothing about you: the only "profile" is a list of topics
+(`profile.yaml`), the only state it keeps is which items it already showed you
+(so nothing repeats), cached scores, and deadlines you've asked it to track.
 
 ## Prerequisites
 
@@ -52,9 +54,9 @@ the 16-character code into `.env` (spaces don't matter).
 
 Then make Scout yours:
 
-- **`profile.yaml`** — the most important file. Identity, north star, routes,
-  portfolio, constraints, goal weights. Every ranking decision is made
-  relative to it. Edit it whenever your situation changes.
+- **`profile.yaml`** — the interest list the ranking runs against. Three
+  tiers (high/medium/low); adding or removing a topic line is the whole
+  tuning mechanism. No personal data goes in here — none is needed.
 - **`config.yaml`** — sources on/off and their feeds, item caps, keywords,
   model choice, reminder windows. All commented.
 
@@ -63,9 +65,8 @@ Then make Scout yours:
 ```bash
 cd /opt/scout
 venv/bin/python scout.py morning     # the main brief
-venv/bin/python scout.py evening     # the delta since morning (+ context bundle attached)
+venv/bin/python scout.py evening     # the delta since morning
 venv/bin/python scout.py weekly      # the Sunday synthesis
-venv/bin/python scout.py export      # writes scout_context.md
 ```
 
 Useful flags: `--dry-run` (fetch + rank, write the brief to
@@ -91,31 +92,17 @@ on your phone. Skipped runs self-heal: fetchers pull "since the last
 successful run", never "since now − 12h", so nothing is missed or
 double-sent.
 
-## Talking to the mentor
-
-1. Run `venv/bin/python scout.py export` — or just grab `scout_context.md`
-   from the latest evening email (it's attached every evening, always fresh).
-2. Open a new Claude chat, attach or paste the file, say "here's my context —
-   be my mentor."
-3. Ask anything: *what are my real odds at Project Europe*, *which of this
-   week's papers should I read deeply*, *is now the moment to leave
-   Accenture*. The mentor answers from the real, current picture.
-
-Re-export whenever you want a fresh snapshot.
-
 ## Tuning
 
 | What | Where |
 |---|---|
-| Goal weights (0–10 per route) | `profile.yaml` → `goal_weights` |
+| Interests (three tiers) | `profile.yaml` → `interests` |
 | Sources on/off, feed URLs | `config.yaml` → `sources` |
 | Pre-filter + politics keywords | `config.yaml` → `ranking.prefilter_keywords`, `sources.uk_politics.keywords` |
 | Ranking / weekly model | `config.yaml` → `ranking.model`, `ranking.weekly_model` |
 | Items per brief, score floor | `max_items_morning`, `max_items_evening`, `min_score_to_show` |
-| Quiet-route reporting | `quiet_route_reporting`, `quiet_after_days` |
 | Deadline reminder windows | `deadline_reminder_days` |
 | Manual opportunities to track | `config.yaml` → `sources.opportunities.manual` |
-| Context bundle window | `export.window_days` |
 
 ## Honest limits
 
@@ -130,26 +117,27 @@ Re-export whenever you want a fresh snapshot.
   publisher moves a feed the brief footer will tell you ("Heads up: X failed
   to fetch") — swap the URL in `config.yaml`. Anthropic has no official RSS
   feed, so its coverage comes from the careers watch and the other primaries.
-- **The mentor bundle is a manual paste, not a live agent.** By design, for
-  v1.
 - **It costs a little.** A few £/month for the VPS, cents/day for ranking.
 
 ## Privacy rules (enforced in code, not just promised)
 
 - Secrets live in `.env`, are git-ignored, never logged, and are sent only to
   `api.anthropic.com` and Gmail SMTP.
+- The only thing sent to the API besides item headlines is the topic list in
+  `profile.yaml`. The ranking prompt explicitly tells the model it knows
+  nothing about the reader and must not speculate.
 - Email goes only to your own address; no other recipient is accepted from
   anywhere.
-- Only public data is read. Nothing paywalled, nothing behind a login.
-- **No Accenture data, ever.** Scout has no connector, no credential, no code
-  path that touches anything internal. It reasons about the Accenture route
-  only from `profile.yaml`.
+- Only public data is read. Nothing paywalled, nothing behind a login, no
+  work/internal data of any kind.
+- Local state (`data/scout.db`) holds item IDs, scores, run logs and
+  deadlines — nothing personal. Delete the file any time for a clean slate.
 
 ## Project layout
 
 ```
-scout.py        entry point — morning|evening|weekly|export
-profile.yaml    who you are; drives all ranking
+scout.py        entry point — morning|evening|weekly
+profile.yaml    the interest list; drives all ranking
 config.yaml     non-secret settings
 sources/        arxiv, ft_rss, ai_news, uk_politics, opportunities (+ shared rss)
 prefilter.py    cheap keyword cut before any API spend
@@ -157,7 +145,7 @@ rank.py         Anthropic ranking + weekly synthesis
 pipeline.py     the per-run sequence; failure isolation
 brief.py        brief assembly       templates/   email templates
 mailer.py       Gmail SMTP delivery  deadlines.py deadline parsing + reminders
-export.py       scout_context.md     store.py     SQLite state (data/scout.db)
+store.py        SQLite state (data/scout.db)
 tests/          pytest suite
 ```
 

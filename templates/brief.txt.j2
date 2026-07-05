@@ -18,11 +18,6 @@ DEADLINES
 {% if not groups and quiet_body %}
 {{ quiet_body }}
 {% endif %}
-{%- if quiet_lines %}
-
-{% for q in quiet_lines %}{{ q }}
-{% endfor %}
-{%- endif %}
 {%- if footer_lines %}
 
 --

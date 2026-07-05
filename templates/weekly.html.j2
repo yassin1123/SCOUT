@@ -11,11 +11,11 @@
   {% endif %}
   {% endfor %}
 
-  {% if top_per_route %}
-  <p style="font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#777;margin:22px 0 10px;border-bottom:1px solid #ececec;padding-bottom:5px;">Most important per route</p>
-  {% for t in top_per_route %}
+  {% if top_items %}
+  <p style="font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#777;margin:22px 0 10px;border-bottom:1px solid #ececec;padding-bottom:5px;">Best of the week</p>
+  {% for t in top_items %}
   <div style="margin:0 0 14px;">
-    <span style="font-size:11px;letter-spacing:1px;text-transform:uppercase;color:#8a6d3b;">{{ t.route }}</span>
+    <span style="font-size:11px;letter-spacing:1px;text-transform:uppercase;color:#8a6d3b;">{{ t.section }}</span>
     <p style="margin:2px 0 2px;font-size:15px;font-weight:600;color:#0b3d62;">{{ t.title }}</p>
     <p style="margin:0;font-size:14px;color:#222;">{{ t.why }}</p>
   </div>

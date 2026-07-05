@@ -5,11 +5,20 @@ from __future__ import annotations
 import datetime as dt
 from dataclasses import dataclass, field
 
-# The fixed set of route tags the ranker may assign (spec 7.2).
-ROUTE_TAGS = ["Founder", "FDE", "Startup", "Markets", "Politics", "Opportunity", "General"]
+# Briefs group by plain content section, derived mechanically from the source —
+# no model ever assigns a label to the reader's life.
+SECTION_ORDER = ["Opportunities", "Papers", "News", "Politics"]
+SOURCE_SECTION = {
+    "arxiv": "Papers",
+    "ai_news": "News",
+    "ft": "News",
+    "uk_politics": "Politics",
+    "opportunity": "Opportunities",
+}
 
-# Display order in briefs: actionable first, background last (spec 8.1).
-ROUTE_ORDER = ["Opportunity", "Founder", "FDE", "Startup", "Markets", "Politics", "General"]
+
+def section_for(source: str) -> str:
+    return SOURCE_SECTION.get(source, "News")
 
 
 @dataclass
@@ -22,7 +31,7 @@ class Item:
     published: dt.datetime
     raw_tags: list[str] = field(default_factory=list)  # source-native categories
     deadline: dt.date | None = None  # parseable opportunity deadline, if any
-    # filled in later by the ranker:
-    score: int = 0             # 0-100 relevance to the user
-    route_tag: str = ""        # one of ROUTE_TAGS
-    why: str = ""              # one-line "why this matters to you"
+    # filled in later:
+    section: str = ""          # one of SECTION_ORDER, set from the source
+    score: int = 0             # 0-100 interest score from the ranker
+    why: str = ""              # one neutral line: what it is, why it's notable

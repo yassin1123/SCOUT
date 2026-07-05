@@ -220,30 +220,19 @@ class Store:
         self.db.commit()
 
     # ------------------------------------------------------------ brief items
+    # NOTE: the route_tag column predates the topic-section refactor; it now
+    # simply stores the item's section string. Kept for schema compatibility.
     def record_brief_items(self, run_id: int, items: list[Item]) -> None:
         now = iso(now_utc())
         self.db.executemany(
             "INSERT INTO brief_items (run_id, external_id, route_tag, score, position, sent_at)"
             " VALUES (?, ?, ?, ?, ?, ?)",
             [
-                (run_id, item.external_id, item.route_tag, item.score, pos, now)
+                (run_id, item.external_id, item.section, item.score, pos, now)
                 for pos, item in enumerate(items)
             ],
         )
         self.db.commit()
-
-    def first_ok_run_at(self) -> dt.datetime | None:
-        row = self.db.execute(
-            "SELECT MIN(started_at) AS t FROM runs"
-            " WHERE mode IN ('morning', 'evening') AND status = 'ok'"
-        ).fetchone()
-        return from_iso(row["t"]) if row and row["t"] else None
-
-    def last_shown_for_route(self, route_tag: str) -> dt.datetime | None:
-        row = self.db.execute(
-            "SELECT MAX(sent_at) AS t FROM brief_items WHERE route_tag = ?", (route_tag,)
-        ).fetchone()
-        return from_iso(row["t"]) if row and row["t"] else None
 
     def items_shown_since(self, since: dt.datetime) -> list[sqlite3.Row]:
         """Brief history joined with titles and why-lines, newest first."""

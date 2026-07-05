@@ -14,6 +14,3 @@ data/*
 !data/.gitkeep
 logs/*
 !logs/.gitkeep
-
-# Generated context bundle (rebuild with `python scout.py export`)
-scout_context.md

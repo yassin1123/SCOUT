@@ -1,11 +1,10 @@
 #!/usr/bin/env python3
-"""Scout — a twice-daily AI/tech intelligence brief, filtered to one person's career.
+"""Scout — a twice-daily AI/tech intelligence brief, ranked against an interest list.
 
 Usage:
     python scout.py morning            # fuller sweep, main brief
     python scout.py evening            # lighter delta since the morning
     python scout.py weekly             # Sunday synthesis digest
-    python scout.py export             # write scout_context.md (mentor bundle)
 
 Flags:
     --dry-run   fetch and rank but send nothing, change no state
@@ -43,7 +42,7 @@ def setup_logging() -> logging.Logger:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Scout — personal AI/tech intelligence brief")
-    parser.add_argument("mode", choices=["morning", "evening", "weekly", "export"])
+    parser.add_argument("mode", choices=["morning", "evening", "weekly"])
     parser.add_argument("--dry-run", action="store_true", help="no email, no state changes")
     parser.add_argument("--force", action="store_true", help="run even if already ran today")
     args = parser.parse_args(argv)
@@ -67,16 +66,12 @@ def main(argv: list[str] | None = None) -> int:
                 args.mode, cfg, profile, secrets, store, logger,
                 force=args.force, dry_run=args.dry_run,
             )
-        if args.mode == "weekly":
-            import pipeline
+        import pipeline
 
-            return pipeline.run_weekly(
-                cfg, profile, secrets, store, logger,
-                force=args.force, dry_run=args.dry_run,
-            )
-        import export
-
-        return export.run_export(cfg, profile, store, logger)
+        return pipeline.run_weekly(
+            cfg, profile, secrets, store, logger,
+            force=args.force, dry_run=args.dry_run,
+        )
     except Exception:
         logger.exception("unhandled error in %s run", args.mode)
         return 1

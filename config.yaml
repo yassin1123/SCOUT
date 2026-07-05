@@ -23,11 +23,6 @@ min_score_to_show: 45
 # On the first ever run there is no "last run" watermark — look back this far.
 first_run_lookback_hours: 24
 
-# Routes to report as "quiet" when they've produced nothing worth showing
-# for a few days (honesty over silent omission).
-quiet_route_reporting: [Founder, FDE, Opportunity]
-quiet_after_days: 3
-
 # Deadline reminders fire at these days-out marks (0 = "closes today" is
 # always included). Reminders surface at the top of the morning brief.
 deadline_reminder_days: [14, 7, 3, 1]
@@ -52,9 +47,8 @@ sources:
   ai_news:
     enabled: true
     # Primary sources preferred over aggregators. Anthropic has no official
-    # RSS feed as of writing — FDE coverage comes from the opportunities
-    # source (careers watch) and these primaries. Add a feed URL here if
-    # Anthropic ships one.
+    # RSS feed as of writing — its careers board is watched by the
+    # opportunities source instead. Add a feed URL here if one ships.
     feeds:
       - "https://openai.com/news/rss.xml"
       - "https://deepmind.google/blog/rss.xml"
@@ -82,22 +76,17 @@ sources:
     feeds:
       - "https://devpost.com/hackathons.rss"
     # Public Greenhouse job boards to watch (board token, not URL).
-    # Anthropic careers is the minimum per spec — FDE target.
     greenhouse_boards: [anthropic]
     # A job title must hit one of these to be picked up.
     job_keywords: [forward deployed, applied ai, solutions engineer,
                    ai engineer, solutions architect]
-    # Manual opportunities you're tracking — surfaced once in a brief, then
-    # their deadlines are tracked and reminded on. Dates are YYYY-MM-DD.
+    # Manual opportunities to track — surfaced once in a brief, then their
+    # deadlines are tracked and reminded on. Dates are YYYY-MM-DD.
     manual: []
-    #  - title: "Defence Disrupted (registered)"
-    #    url: "https://www.defencedisrupted.com"
-    #    deadline: "2026-10-15"   # set the real date when you know it
-    #    notes: "Already registered — October event."
-    #  - title: "Project Europe interview"
-    #    url: "https://www.projecteurope.co"
-    #    deadline: "2026-07-20"
-    #    notes: "Invited to interview. Under-25 founders, EUR 10M fund."
+    #  - title: "Some hackathon"
+    #    url: "https://example.org/hackathon"
+    #    deadline: "2026-12-01"
+    #    notes: "Submission deadline."
 
 ranking:
   # Fast, cheap Claude model for scoring. Switch to a stronger model
@@ -118,10 +107,6 @@ ranking:
   # Update if you change model.
   price_per_mtok_input: 1.00
   price_per_mtok_output: 5.00
-
-export:
-  # How many days of briefs go into scout_context.md. Keep it paste-sized.
-  window_days: 7
 
 mailer:
   smtp_host: "smtp.gmail.com"

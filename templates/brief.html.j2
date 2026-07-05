@@ -27,14 +27,6 @@
   <p style="font-size:15px;margin:0 0 18px;color:#222;">{{ quiet_body }}</p>
   {% endif %}
 
-  {% if quiet_lines %}
-  <div style="margin:22px 0 0;">
-    {% for q in quiet_lines %}
-    <p style="margin:0 0 3px;font-size:13px;color:#8a6d3b;">{{ q }}</p>
-    {% endfor %}
-  </div>
-  {% endif %}
-
   {% if footer_lines %}
   <div style="margin-top:26px;border-top:1px solid #ececec;padding-top:10px;">
     {% for f in footer_lines %}

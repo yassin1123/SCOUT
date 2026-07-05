@@ -12,7 +12,7 @@ from collections import Counter
 from jinja2 import Environment, FileSystemLoader
 
 from config import ROOT, source_cfg, source_enabled
-from models import ROUTE_ORDER, Item
+from models import SECTION_ORDER, Item
 from util import to_local
 
 SOURCE_LABELS = {
@@ -45,7 +45,7 @@ def select_items(ranked: list[Item], cfg: dict, mode: str) -> list[Item]:
     for item in sorted(ranked, key=lambda i: i.score, reverse=True):
         if item.score < min_score:
             break  # sorted — nothing below clears the bar
-        if item.route_tag == "Politics":
+        if item.section == "Politics":
             if politics_shown >= politics_cap:
                 continue
             politics_shown += 1
@@ -57,7 +57,7 @@ def select_items(ranked: list[Item], cfg: dict, mode: str) -> list[Item]:
 
 def group_items(chosen: list[Item], cfg: dict) -> list[tuple[str, list[dict]]]:
     groups: list[tuple[str, list[dict]]] = []
-    for tag in ROUTE_ORDER:
+    for section in SECTION_ORDER:
         rows = [
             {
                 "title": i.title,
@@ -68,10 +68,10 @@ def group_items(chosen: list[Item], cfg: dict) -> list[tuple[str, list[dict]]]:
                 "date": f"{to_local(i.published, cfg.get('timezone', 'Europe/London')):%d %b}",
             }
             for i in sorted(chosen, key=lambda x: x.score, reverse=True)
-            if i.route_tag == tag
+            if i.section == section
         ]
         if rows:
-            groups.append((tag, rows))
+            groups.append((section, rows))
     return groups
 
 
@@ -83,37 +83,10 @@ def day_read(chosen: list[Item], cfg: dict, mode: str) -> str:
             if mode == "evening"
             else "Quiet day — nothing cleared the bar."
         )
-    counts = Counter(i.route_tag for i in chosen)
-    parts = ", ".join(f"{counts[tag]} {tag}" for tag in ROUTE_ORDER if counts.get(tag))
+    counts = Counter(i.section for i in chosen)
+    parts = ", ".join(f"{counts[s]} {s}" for s in SECTION_ORDER if counts.get(s))
     n = len(chosen)
-    line = f"{n} thing{'s' if n != 1 else ''} worth your time: {parts}."
-    if source_enabled(cfg, "arxiv") and not any(i.source == "arxiv" for i in chosen):
-        line += " arXiv quiet."
-    return line
-
-
-def quiet_route_lines(shown: list[Item], store, cfg: dict) -> list[str]:
-    """The honesty line (spec 8.1): if a route the user cares about has shown
-    nothing for days, say so explicitly instead of silently omitting it."""
-    routes = cfg.get("quiet_route_reporting") or []
-    threshold = int(cfg.get("quiet_after_days", 3))
-    first_run = store.first_ok_run_at()
-    now = dt.datetime.now(dt.timezone.utc)
-    if first_run is None or (now - first_run).days < threshold:
-        return []  # too early to call anything quiet
-    shown_tags = {i.route_tag for i in shown}
-    lines = []
-    for tag in routes:
-        if tag in shown_tags:
-            continue
-        last = store.last_shown_for_route(tag)
-        if last is None:
-            lines.append(f"Nothing on the {tag} front yet.")
-            continue
-        days = (now - last).days
-        if days >= threshold:
-            lines.append(f"Nothing on the {tag} front for {days} days now.")
-    return lines
+    return f"{n} thing{'s' if n != 1 else ''} worth your time: {parts}."
 
 
 def build_footer_lines(
@@ -138,7 +111,6 @@ def build_brief(
     chosen: list[Item],
     cfg: dict,
     reminders: list[dict] | None = None,
-    quiet_lines: list[str] | None = None,
     footer_lines: list[str] | None = None,
 ) -> dict:
     """Returns {subject, html, text} for a morning or evening brief."""
@@ -172,7 +144,6 @@ def build_brief(
             if (mode == "evening" and not chosen)
             else ""
         ),
-        "quiet_lines": quiet_lines or [],
         "footer_lines": footer_lines or [],
     }
     return {
@@ -190,9 +161,8 @@ def build_weekly(data: dict, week_of: str, cfg: dict, footer_lines: list[str]) -
         "sections": [
             ("Recurring threads", data.get("threads") or []),
             ("Building momentum", data.get("momentum") or []),
-            ("State of your routes", data.get("route_state") or []),
         ],
-        "top_per_route": data.get("top_per_route") or [],
+        "top_items": data.get("top_items") or [],
         "deadline_note": data.get("deadline_note") or "",
         "footer_lines": footer_lines or [],
     }

@@ -14,7 +14,7 @@ import mailer
 import prefilter
 import rank
 from config import source_cfg, source_enabled
-from models import Item
+from models import Item, section_for
 from sources import ai_news, arxiv, ft_rss, opportunities, uk_politics
 from store import Store
 from util import local_now, now_utc, to_utc
@@ -77,6 +77,8 @@ def run_brief(
     logger.info("fetching everything since %s", since.isoformat(timespec="seconds"))
 
     fetched, failures = fetch_all(cfg, store, logger, since)
+    for item in fetched:  # sections are mechanical: source decides, no model involved
+        item.section = section_for(item.source)
     new_items = store.filter_unseen(fetched)
     kept, prefiltered_out = prefilter.apply(new_items, cfg)
     logger.info(
@@ -106,25 +108,8 @@ def run_brief(
     logger.info("ranking: %s", cost_note)
 
     shown = brief.select_items(kept, cfg, mode)
-    quiet_lines = brief.quiet_route_lines(shown, store, cfg) if mode == "morning" else []
     footer_lines = brief.build_footer_lines(len(new_items), len(shown), failures, stats)
-    doc = brief.build_brief(
-        mode, shown, cfg,
-        reminders=reminders, quiet_lines=quiet_lines, footer_lines=footer_lines,
-    )
-
-    # The evening email always carries a fresh context bundle (spec 8.2), so
-    # a current mentor snapshot is always one inbox search away.
-    attachments = []
-    if mode == "evening":
-        try:
-            import export
-
-            bundle = export.build_context(cfg, profile, store)
-            export.OUTPUT_PATH.write_text(bundle, encoding="utf-8")
-            attachments.append(("scout_context.md", bundle.encode("utf-8"), "text", "markdown"))
-        except Exception:  # noqa: BLE001 — the brief still goes out without it
-            logger.exception("could not build context bundle for the evening email")
+    doc = brief.build_brief(mode, shown, cfg, reminders=reminders, footer_lines=footer_lines)
 
     if dry_run:
         mailer.save_fallback(doc["html"], logger)
@@ -136,10 +121,7 @@ def run_brief(
         )
         return 0
 
-    sent = mailer.send_brief(
-        doc["subject"], doc["html"], doc["text"], secrets, cfg, logger,
-        attachments=attachments,
-    )
+    sent = mailer.send_brief(doc["subject"], doc["html"], doc["text"], secrets, cfg, logger)
     if not sent:
         # Items stay un-seen so they come back next run — nothing is lost.
         store.finish_run(
@@ -178,25 +160,23 @@ def _fallback_weekly(week_rows: list[dict], deadline_rows: list[dict]) -> dict:
     if not week_rows:
         return {
             "week_read": "Quiet week — nothing cleared the bar.",
-            "threads": [], "momentum": [], "top_per_route": [], "route_state": [],
+            "threads": [], "momentum": [], "top_items": [],
             "deadline_note": _deadline_sentence(deadline_rows),
         }
     best: dict[str, dict] = {}
     counts: dict[str, int] = {}
     for row in week_rows:
-        counts[row["route"]] = counts.get(row["route"], 0) + 1
-        if row["route"] not in best or row["score"] > best[row["route"]]["score"]:
-            best[row["route"]] = row
+        counts[row["section"]] = counts.get(row["section"], 0) + 1
+        if row["section"] not in best or row["score"] > best[row["section"]]["score"]:
+            best[row["section"]] = row
     return {
-        "week_read": f"{len(week_rows)} items made your briefs this week.",
+        "week_read": f"{len(week_rows)} items made the briefs this week: "
+        + ", ".join(f"{n} {s}" for s, n in counts.items()) + ".",
         "threads": [],
         "momentum": [],
-        "top_per_route": [
-            {"route": tag, "title": row["title"], "why": row["why"]}
-            for tag, row in best.items()
-        ],
-        "route_state": [
-            f"{tag}: {n} item{'s' if n != 1 else ''} this week." for tag, n in counts.items()
+        "top_items": [
+            {"section": section, "title": row["title"], "why": row["why"]}
+            for section, row in best.items()
         ],
         "deadline_note": _deadline_sentence(deadline_rows),
     }
@@ -221,7 +201,7 @@ def run_weekly(
     rows = store.items_shown_since(now_utc() - dt.timedelta(days=7))
     week_rows = [
         {
-            "title": r["title"], "route": r["route_tag"], "score": r["score"],
+            "title": r["title"], "section": r["route_tag"], "score": r["score"],
             "why": r["why"], "source": r["source"],
             "day": r["sent_at"][:10],
         }

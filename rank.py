@@ -1,8 +1,9 @@
-"""The ranking & annotation engine — what makes Scout more than an RSS reader.
+"""The ranking engine — what makes Scout more than an RSS reader.
 
 For each item surviving the pre-filter, the Anthropic API produces a
-score (0-100), a route tag, and a one-line "why this matters to you",
-judged against the full profile (spec Section 7).
+score (0-100) and one neutral line saying what the item is and why it's
+notable — judged purely against the interest list in profile.yaml. The
+model is told nothing about the reader and instructed not to speculate.
 
 Cost control: items are batched per call, scores are cached in SQLite so
 nothing is ever re-scored, and token usage is tallied for the run log.
@@ -15,45 +16,39 @@ import json
 import logging
 import re
 
-from models import ROUTE_TAGS, Item
+from models import Item
 from store import Store
 
 NEUTRAL_SCORE = 50
 FALLBACK_WHY = "(unranked — scoring failed this run, will retry next run)"
 
 SYSTEM_TEMPLATE = """\
-You are the ranking engine inside Scout, a private twice-daily intelligence \
-brief serving exactly one person. Score each item for how much it matters to \
-THIS person's career, given their north star and its routes. Their full \
-profile follows.
+You are the ranking engine inside Scout, a private twice-daily tech \
+intelligence brief. Score each item 0-100 for how interesting it is against \
+the interest profile below — and nothing else. You know nothing about the \
+reader beyond these interests; do not speculate about them or address them.
 
-=== PROFILE ===
+=== INTERESTS ===
 {profile_md}
-=== END PROFILE ===
+=== END INTERESTS ===
 
 Scoring (0-100):
-- 0-20 noise; 21-44 marginal; 45-64 worth a skim; 65-84 clearly serves a \
-route or lane; 85-100 act on this — rare, real signal.
-- Weight by the goal_weights above: an item serving `founder` (weight 10) \
-matters far more than one serving `pe_ib` (weight 1).
-- Prefer their proven lanes. An item in a lane that ALSO carries an \
-opportunity (a hackathon, a job, a fundable wedge) ranks highest of all.
-- Give Anthropic-related items a modest boost (their FDE target) — a boost, \
-not an automatic top score.
-- Politics only scores high when the policy genuinely touches tech, \
-startups, funding, defence, talent visas, or AI/data regulation.
+- 0-20 noise; 21-44 marginal; 45-64 solid; 65-84 squarely inside the \
+interests; 85-100 a major development — rare.
+- Weight by tier: a `high` interest hit outranks a `medium`, which outranks \
+a `low`.
+- Opportunities (hackathons, competitions, roles) score by how well they fit \
+the interests and how actionable they are; state any hard requirement \
+(deadline, eligibility, cutoff) plainly in the why line.
+- Politics only scores high when the policy concretely touches tech, \
+startups, funding, defence, or AI/data regulation.
 
-route_tag: assign exactly one of {route_tags}.
-
-why: ONE sentence, second person, blunt and direct, no fluff, no hype — \
-like a sharp friend who knows their career, never a newsletter. Tie it to \
-their actual situation. For opportunities with hard filters (grade cutoffs, \
-eligibility, deadlines) state the filter plainly — honesty over \
-encouragement; their 57 average means a grade cutoff must never be hidden.
+why: ONE neutral sentence — what the item is and why it's notable. Factual, \
+no hype, no fluff, and never address or refer to the reader.
 
 Output: a STRICT JSON array only — no prose, no markdown fences, no extra \
 keys. One object per input item, external_id copied verbatim:
-[{{"external_id": "...", "score": 0, "route_tag": "...", "why": "..."}}]
+[{{"external_id": "...", "score": 0, "why": "..."}}]
 """
 
 
@@ -61,8 +56,8 @@ def profile_to_markdown(profile: dict) -> str:
     """Render profile.yaml as readable prose/markdown, not raw YAML.
 
     Generic: survives user edits to the profile structure. Dicts become
-    sections, short scalar-only dicts become bullet lists (goal_weights),
-    lists become bullets, name/detail entries get bolded names.
+    sections, short scalar-only dicts become bullet lists, lists become
+    bullets, name/detail entries get bolded names.
     """
     lines: list[str] = []
 
@@ -103,10 +98,7 @@ def profile_to_markdown(profile: dict) -> str:
 
 
 def build_system_prompt(profile: dict) -> str:
-    return SYSTEM_TEMPLATE.format(
-        profile_md=profile_to_markdown(profile),
-        route_tags=", ".join(ROUTE_TAGS),
-    )
+    return SYSTEM_TEMPLATE.format(profile_md=profile_to_markdown(profile))
 
 
 def parse_json_array(text: str) -> list:
@@ -123,9 +115,9 @@ def parse_json_array(text: str) -> list:
     return data
 
 
-def _validate(entries: list, batch: list[Item]) -> dict[str, tuple[int, str, str]]:
+def _validate(entries: list, batch: list[Item]) -> dict[str, tuple[int, str]]:
     valid_ids = {i.external_id for i in batch}
-    out: dict[str, tuple[int, str, str]] = {}
+    out: dict[str, tuple[int, str]] = {}
     for entry in entries:
         if not isinstance(entry, dict):
             continue
@@ -136,11 +128,8 @@ def _validate(entries: list, batch: list[Item]) -> dict[str, tuple[int, str, str
             score = max(0, min(100, int(entry.get("score", NEUTRAL_SCORE))))
         except (TypeError, ValueError):
             score = NEUTRAL_SCORE
-        route = entry.get("route_tag")
-        if route not in ROUTE_TAGS:
-            route = "General"
         why = str(entry.get("why", "")).strip()
-        out[eid] = (score, route, why)
+        out[eid] = (score, why)
     return out
 
 
@@ -167,7 +156,7 @@ def _batch_payload(batch: list[Item], max_chars: int) -> str:
 def _rank_batch(
     client, model: str, system_prompt: str, batch: list[Item],
     max_chars: int, stats: dict, logger: logging.Logger,
-) -> dict[str, tuple[int, str, str]] | None:
+) -> dict[str, tuple[int, str]] | None:
     """One API call for one batch. Retries once on parse/API failure, then
     None — the caller falls back to a neutral score (spec 7.1)."""
     user_content = (
@@ -219,9 +208,7 @@ def rank_items(
     for item in items:
         cached = store.get_score(item.external_id)
         if cached:
-            item.score, item.route_tag, item.why = (
-                cached["score"], cached["route_tag"], cached["why"],
-            )
+            item.score, item.why = cached["score"], cached["why"]
             stats["cache_hits"] += 1
         else:
             to_rank.append(item)
@@ -246,11 +233,11 @@ def rank_items(
             if scored is None:
                 # Neutral fallback — deliberately NOT cached, so it gets
                 # re-scored on the next run instead of sticking forever.
-                item.score, item.route_tag, item.why = NEUTRAL_SCORE, "General", FALLBACK_WHY
+                item.score, item.why = NEUTRAL_SCORE, FALLBACK_WHY
                 stats["failed_items"] += 1
             else:
-                item.score, item.route_tag, item.why = scored
-                store.save_score(item.external_id, *scored)
+                item.score, item.why = scored
+                store.save_score(item.external_id, item.score, item.section, item.why)
 
     price_in = float(rcfg.get("price_per_mtok_input", 1.0))
     price_out = float(rcfg.get("price_per_mtok_output", 5.0))
@@ -263,29 +250,28 @@ def rank_items(
 # --------------------------------------------------------------------- weekly
 
 WEEKLY_SYSTEM_TEMPLATE = """\
-You are the weekly synthesis engine inside Scout, a private intelligence \
-brief serving exactly one person. Their profile:
+You are the weekly synthesis engine inside Scout, a private tech \
+intelligence brief. You know nothing about the reader beyond the interest \
+profile below; never address or speculate about them.
 
-=== PROFILE ===
+=== INTERESTS ===
 {profile_md}
-=== END PROFILE ===
+=== END INTERESTS ===
 
 The Sunday digest is a SYNTHESIS, not a re-list: daily is signal, weekly is \
-pattern. You get everything Scout showed them this week (route tags, scores, \
-why-lines) plus upcoming deadlines. Be blunt, direct, no fluff, second \
-person, no hype. Honesty over encouragement — a quiet route is called quiet.
+pattern. You get everything the week's briefs contained (sections, scores, \
+summary lines) plus upcoming deadlines. Neutral, factual, no hype, no fluff.
 
 Return a STRICT JSON object only — no prose, no markdown fences:
 {{
-  "week_read": "one blunt sentence — the read of the week",
-  "threads": ["2-4 bullets — recurring threads in their lanes this week"],
+  "week_read": "one plain sentence — the read of the week",
+  "threads": ["2-4 bullets — topics that kept recurring this week"],
   "momentum": ["1-3 bullets — topics accelerating across multiple items; [] if none"],
-  "top_per_route": [{{"route": "...", "title": "...", "why": "one sentence"}}],
-  "route_state": ["one bullet per route that matters (Founder, FDE, Startup, Opportunity): strong or quiet, with one clause of texture"],
+  "top_items": [{{"section": "...", "title": "...", "why": "one neutral sentence"}}],
   "deadline_note": "one sentence if anything closes in the next two weeks, else \\"\\""
 }}
-Only include a route in top_per_route when something genuinely important \
-appeared for it.
+Include at most one top item per section, and only when something genuinely \
+stood out.
 """
 
 
@@ -338,7 +324,7 @@ def synthesize_week(
             text = "".join(b.text for b in response.content if b.type == "text")
             data = parse_json_object(text)
             data.setdefault("week_read", "")
-            for key in ("threads", "momentum", "top_per_route", "route_state"):
+            for key in ("threads", "momentum", "top_items"):
                 if not isinstance(data.get(key), list):
                     data[key] = []
             data["deadline_note"] = str(data.get("deadline_note", "")).strip()

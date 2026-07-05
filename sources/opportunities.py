@@ -3,12 +3,10 @@
 The fuzziest source — best-effort by design and honest about it (see
 README). Three legs:
 
-  * hackathon listing feeds (RSS) the user can extend in config;
-  * public Greenhouse job boards — at minimum the Anthropic board,
-    title-filtered to FDE/applied-style roles (the FDE target);
-  * a manual list in config for things already on the user's radar
-    (Defence Disrupted, Project Europe, ...) so their deadlines get
-    tracked and reminded on.
+  * hackathon listing feeds (RSS), extendable in config;
+  * public Greenhouse job boards, title-filtered by configurable keywords;
+  * a manual list in config for anything else worth tracking, so its
+    deadline gets recorded and reminded on.
 
 No aggressive scraping, nothing behind a login, no ToS games. Items with
 a parseable deadline carry it so the reminder engine can track it.

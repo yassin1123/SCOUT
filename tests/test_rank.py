@@ -31,18 +31,21 @@ def test_validate_clamps_and_coerces():
     batch = [make_item("arxiv:1")]
     out = _validate(
         [
-            {"external_id": "arxiv:1", "score": 250, "route_tag": "Bogus", "why": " w "},
-            {"external_id": "unknown", "score": 10, "route_tag": "Founder", "why": "x"},
+            {"external_id": "arxiv:1", "score": 250, "why": " w "},
+            {"external_id": "unknown", "score": 10, "why": "x"},
         ],
         batch,
     )
-    assert out == {"arxiv:1": (100, "General", "w")}
+    assert out == {"arxiv:1": (100, "w")}
 
 
-def test_system_prompt_carries_profile(profile):
+def test_system_prompt_is_interests_only(profile):
     prompt = build_system_prompt(profile)
-    assert "57 average" in prompt and "Opportunity" in prompt
-    assert "North Star" in prompt
+    assert "INTERESTS" in prompt
+    assert "never address" in prompt
+    # nothing personal may appear in what goes to the API
+    for forbidden in ("Accenture", "Southampton", "57", "founder", "FDE"):
+        assert forbidden not in prompt, forbidden
 
 
 def _fake_client(score=88):
@@ -54,7 +57,7 @@ def _fake_client(score=88):
         block = MagicMock()
         block.type = "text"
         block.text = json.dumps(
-            [{"external_id": i, "score": score, "route_tag": "Founder", "why": "w"} for i in ids]
+            [{"external_id": i, "score": score, "why": "w"} for i in ids]
         )
         resp.content = [block]
         return resp
