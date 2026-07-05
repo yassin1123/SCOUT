@@ -1,37 +1,79 @@
-<div style="max-width:600px;margin:0 auto;padding:24px 16px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#1a1a1a;line-height:1.5;background:#ffffff;">
-  <p style="font-size:12px;letter-spacing:2px;text-transform:uppercase;color:#999;margin:0 0 4px;">Scout {{ mode_label }} &middot; {{ date_str }}</p>
-  <p style="font-size:17px;font-weight:600;margin:0 0 18px;color:#111;">{{ day_read }}</p>
+{% set accents = {
+  'Opportunities': ('#B45309', '#FFF7ED', '#FDE9D2'),
+  'Papers':        ('#4338CA', '#EEF2FF', '#E0E5FB'),
+  'News':          ('#0369A1', '#F0F9FF', '#DDF0FB'),
+  'Politics':      ('#475569', '#F8FAFC', '#E9EEF4')
+} %}
+<div style="background:#EEF0F3;padding:28px 12px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+  <div style="max-width:600px;margin:0 auto;">
 
-  {% if reminders %}
-  <div style="border-left:3px solid #b03a2e;background:#fbf4f3;padding:10px 14px;margin:0 0 22px;">
-    <p style="margin:0 0 6px;font-size:11px;font-weight:700;letter-spacing:1px;color:#b03a2e;">DEADLINES</p>
-    {% for r in reminders %}
-    <p style="margin:0 0 4px;font-size:14px;color:#222;">{% if r.url %}<a href="{{ r.url }}" style="color:#222;font-weight:600;text-decoration:none;">{{ r.title }}</a>{% else %}<span style="font-weight:600;">{{ r.title }}</span>{% endif %} &mdash; {{ r.line }}</p>
-    {% endfor %}
-  </div>
-  {% endif %}
+    <!-- header band -->
+    <div style="background:#0F172A;border-radius:16px 16px 0 0;padding:20px 24px;">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
+        <td style="color:#FFFFFF;font-size:17px;font-weight:800;letter-spacing:5px;">SCOUT</td>
+        <td align="right" style="color:#94A3B8;font-size:12px;font-weight:600;letter-spacing:1px;">{{ mode_label }} &middot; {{ date_str|upper }}</td>
+      </tr></table>
+    </div>
 
-  {% for tag, group in groups %}
-  <p style="font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#777;margin:22px 0 10px;border-bottom:1px solid #ececec;padding-bottom:5px;">{{ tag }}</p>
-    {% for item in group %}
-    <div style="margin:0 0 18px;">
-      <a href="{{ item.url }}" style="font-size:15px;font-weight:600;color:#0b3d62;text-decoration:none;">{{ item.title }}</a>
-      <span style="font-size:11px;color:#b8b8b8;">&nbsp;{{ item.score }}</span>
-      <p style="margin:4px 0 3px;font-size:14px;color:#222;">{{ item.why }}</p>
-      <p style="margin:0;font-size:12px;color:#9a9a9a;">{{ item.source_label }} &middot; {{ item.date }}</p>
+    <!-- hero: the read of the day -->
+    <div style="background:#FFFFFF;padding:22px 24px 18px;border:1px solid #E4E7EC;border-top:none;">
+      <p style="margin:0;font-size:18px;line-height:1.45;font-weight:700;color:#0F172A;">{{ day_read }}</p>
+    </div>
+
+    {% if reminders %}
+    <!-- deadlines: always first, impossible to miss -->
+    <div style="background:#FFF1F0;border:1px solid #FECDCA;border-top:none;padding:16px 24px;">
+      <p style="margin:0 0 10px;font-size:11px;font-weight:800;letter-spacing:2px;color:#B42318;">&#9200;&nbsp;DEADLINES</p>
+      {% for r in reminders %}
+      <div style="margin:0 0 8px;padding:10px 14px;background:#FFFFFF;border:1px solid #FECDCA;border-radius:10px;">
+        <p style="margin:0;font-size:14px;line-height:1.4;">
+          {% if r.url %}<a href="{{ r.url }}" style="color:#B42318;font-weight:700;text-decoration:none;">{{ r.title }}</a>{% else %}<span style="color:#B42318;font-weight:700;">{{ r.title }}</span>{% endif %}
+          <span style="color:#667085;">&nbsp;&mdash;&nbsp;{{ r.line }}</span>
+        </p>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    {% for tag, group in groups %}
+    {% set accent = accents.get(tag, ('#475569', '#F8FAFC', '#E9EEF4')) %}
+    <div style="background:#FFFFFF;border:1px solid #E4E7EC;border-top:none;padding:18px 24px 6px;">
+      <table role="presentation" cellpadding="0" cellspacing="0"><tr>
+        <td style="background:{{ accent[1] }};border:1px solid {{ accent[2] }};border-radius:999px;padding:4px 12px;font-size:11px;font-weight:800;letter-spacing:1.5px;color:{{ accent[0] }};">{{ tag|upper }}</td>
+      </tr></table>
+      {% for item in group %}
+      <div style="padding:14px 0 12px;{% if not loop.last %}border-bottom:1px solid #F2F4F7;{% endif %}">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
+          <td style="vertical-align:top;">
+            <a href="{{ item.url }}" style="font-size:15.5px;line-height:1.4;font-weight:700;color:#101828;text-decoration:none;">{{ item.title }}</a>
+          </td>
+          <td width="44" align="right" style="vertical-align:top;">
+            <span style="display:inline-block;background:{{ accent[1] }};color:{{ accent[0] }};font-size:11px;font-weight:800;padding:3px 8px;border-radius:999px;">{{ item.score }}</span>
+          </td>
+        </tr></table>
+        <p style="margin:6px 0 8px;font-size:14px;line-height:1.5;color:#344054;">{{ item.why }}</p>
+        <p style="margin:0;font-size:12px;color:#98A2B3;">
+          <span style="display:inline-block;width:7px;height:7px;border-radius:999px;background:{{ accent[0] }};"></span>&nbsp;
+          {{ item.source_label }} &nbsp;&middot;&nbsp; {{ item.date }} &nbsp;&middot;&nbsp; <a href="{{ item.url }}" style="color:{{ accent[0] }};font-weight:700;text-decoration:none;">Open&nbsp;&rarr;</a>
+        </p>
+      </div>
+      {% endfor %}
     </div>
     {% endfor %}
-  {% endfor %}
 
-  {% if not groups and quiet_body %}
-  <p style="font-size:15px;margin:0 0 18px;color:#222;">{{ quiet_body }}</p>
-  {% endif %}
+    {% if not groups and quiet_body %}
+    <div style="background:#FFFFFF;border:1px solid #E4E7EC;border-top:none;padding:26px 24px;">
+      <p style="margin:0;font-size:15px;line-height:1.5;color:#344054;">{{ quiet_body }}</p>
+    </div>
+    {% endif %}
 
-  {% if footer_lines %}
-  <div style="margin-top:26px;border-top:1px solid #ececec;padding-top:10px;">
-    {% for f in footer_lines %}
-    <p style="margin:0 0 3px;font-size:12px;color:#a5a5a5;">{{ f }}</p>
-    {% endfor %}
+    <!-- footer -->
+    <div style="background:#F8FAFC;border:1px solid #E4E7EC;border-top:1px dashed #E4E7EC;border-radius:0 0 16px 16px;padding:14px 24px;">
+      {% for f in footer_lines %}
+      <p style="margin:0 0 3px;font-size:12px;line-height:1.5;color:#98A2B3;">{{ f }}</p>
+      {% endfor %}
+      <p style="margin:6px 0 0;font-size:11px;color:#C3CAD5;">Scout &middot; your feeds, ranked &middot; tune it in profile.yaml</p>
+    </div>
+
   </div>
-  {% endif %}
 </div>
