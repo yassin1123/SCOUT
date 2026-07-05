@@ -15,7 +15,7 @@ import prefilter
 import rank
 from config import source_cfg, source_enabled
 from models import Item, section_for
-from sources import ai_news, arxiv, ft_rss, opportunities, uk_politics
+from sources import ai_news, arxiv, ft_rss, opportunities, rss, uk_politics
 from store import Store
 from util import local_now, now_utc, to_utc
 
@@ -213,10 +213,28 @@ def run_weekly(
         if (closes - today).days <= 14:
             deadline_rows.append({"title": row["title"], "closes": closes.isoformat()})
 
+    # Long-form reading candidates for the "one good read" slot — fetched
+    # only on Sundays, never part of the daily pipeline, never stored.
+    reading_rows: list[dict] = []
+    reading_cfg = cfg.get("weekly_reading") or {}
+    if reading_cfg.get("enabled") and reading_cfg.get("feeds"):
+        try:
+            reading_items = rss.fetch_many(
+                reading_cfg["feeds"], "reading", now_utc() - dt.timedelta(days=7)
+            )
+            reading_rows = [
+                {"title": i.title, "url": i.url, "summary": i.summary[:300]}
+                for i in reading_items[:20]
+            ]
+        except Exception as exc:  # noqa: BLE001 — the digest goes out without a read
+            logger.warning("weekly reading feeds failed: %s", exc)
+
     stats = {"api_calls": 0, "input_tokens": 0, "output_tokens": 0}
     footer: list[str] = []
     data = (
-        rank.synthesize_week(week_rows, deadline_rows, profile, cfg, logger, stats)
+        rank.synthesize_week(
+            week_rows, deadline_rows, reading_rows, profile, cfg, logger, stats
+        )
         if week_rows
         else None
     )
@@ -226,6 +244,7 @@ def run_weekly(
             footer.append(
                 "Synthesis unavailable this week (API trouble) — deterministic digest instead."
             )
+    data.setdefault("read_of_week", None)
 
     monday = today - dt.timedelta(days=today.weekday())
     week_of = f"{monday.day} {monday:%b}"

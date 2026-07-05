@@ -20,7 +20,8 @@ def _ranked(cfg):
 def test_select_caps_politics_and_floors_score(cfg):
     chosen = brief.select_items(_ranked(cfg), cfg, "morning")
     sections = [i.section for i in chosen]
-    assert sections.count("Politics") == 2
+    cap = cfg["sources"]["uk_politics"]["max_items"]
+    assert sections.count("Politics") == min(3, cap)  # fixture has 3 above the floor
     assert all(i.score >= cfg["min_score_to_show"] for i in chosen)
     assert len(chosen) <= cfg["max_items_morning"]
 
@@ -55,9 +56,11 @@ def test_weekly_build(cfg):
         "week_read": "Edge agents heating up.",
         "threads": ["t1"], "momentum": ["m1"],
         "top_items": [{"section": "Papers", "title": "Paper", "why": "w"}],
+        "read_of_week": {"title": "Good Read", "url": "https://r", "why": "worth it"},
         "deadline_note": "DD closes in 10 days.",
     }
     doc = brief.build_weekly(data, "29 Jun", cfg, [])
     assert doc["subject"] == "Scout — Week of 29 Jun — the pattern"
-    for needle in ("heating up", "t1", "m1", "BEST OF THE WEEK", "Paper", "closes in 10 days"):
+    for needle in ("heating up", "t1", "m1", "BEST OF THE WEEK", "Paper",
+                   "ONE GOOD READ", "Good Read", "closes in 10 days"):
         assert needle in doc["text"]

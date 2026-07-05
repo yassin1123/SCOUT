@@ -163,6 +163,7 @@ def build_weekly(data: dict, week_of: str, cfg: dict, footer_lines: list[str]) -
             ("Building momentum", data.get("momentum") or []),
         ],
         "top_items": data.get("top_items") or [],
+        "read_of_week": data.get("read_of_week") or None,
         "deadline_note": data.get("deadline_note") or "",
         "footer_lines": footer_lines or [],
     }

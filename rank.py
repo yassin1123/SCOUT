@@ -37,11 +37,13 @@ Scoring (0-100):
 interests; 85-100 a major development — rare.
 - Weight by tier: a `high` interest hit outranks a `medium`, which outranks \
 a `low`.
-- Opportunities (hackathons, competitions, roles) score by how well they fit \
-the interests and how actionable they are; state any hard requirement \
-(deadline, eligibility, cutoff) plainly in the why line.
-- Politics only scores high when the policy concretely touches tech, \
-startups, funding, defence, or AI/data regulation.
+- Opportunities (hackathons, competitions, events, roles) score by fit to \
+the interests and how actionable they are — note the attendability rule in \
+the interests when location is known; state any hard requirement (deadline, \
+eligibility, location, cutoff) plainly in the why line.
+- Politics: business/economy/tech-relevant policy and genuinely major UK \
+developments both score well; routine process stories and personality \
+coverage stay low.
 
 why: ONE neutral sentence — what the item is and why it's notable. Factual, \
 no hype, no fluff, and never address or refer to the reader.
@@ -260,7 +262,8 @@ profile below; never address or speculate about them.
 
 The Sunday digest is a SYNTHESIS, not a re-list: daily is signal, weekly is \
 pattern. You get everything the week's briefs contained (sections, scores, \
-summary lines) plus upcoming deadlines. Neutral, factual, no hype, no fluff.
+summary lines), upcoming deadlines, and a list of long-form reading \
+candidates. Neutral, factual, no hype, no fluff.
 
 Return a STRICT JSON object only — no prose, no markdown fences:
 {{
@@ -268,10 +271,12 @@ Return a STRICT JSON object only — no prose, no markdown fences:
   "threads": ["2-4 bullets — topics that kept recurring this week"],
   "momentum": ["1-3 bullets — topics accelerating across multiple items; [] if none"],
   "top_items": [{{"section": "...", "title": "...", "why": "one neutral sentence"}}],
+  "read_of_week": {{"title": "...", "url": "...", "why": "one sentence"}},
   "deadline_note": "one sentence if anything closes in the next two weeks, else \\"\\""
 }}
 Include at most one top item per section, and only when something genuinely \
-stood out.
+stood out. Pick read_of_week ONLY from reading_candidates — one long-form \
+piece genuinely worth the time; use null if nothing stands out.
 """
 
 
@@ -289,17 +294,21 @@ def parse_json_object(text: str) -> dict:
 
 
 def synthesize_week(
-    week_rows: list[dict], deadline_rows: list[dict], profile: dict, cfg: dict,
-    logger: logging.Logger, stats: dict,
+    week_rows: list[dict], deadline_rows: list[dict], reading_rows: list[dict],
+    profile: dict, cfg: dict, logger: logging.Logger, stats: dict,
 ) -> dict | None:
-    """One API call over the week's stored items — the highest-value mentor
-    touch in the email product. Returns None on failure; the caller falls
-    back to a deterministic digest and says so."""
+    """One API call over the week's stored items — the pattern, not a re-list.
+    Returns None on failure; the caller falls back to a deterministic digest
+    and says so."""
     rcfg = cfg.get("ranking") or {}
     model = rcfg.get("weekly_model") or rcfg.get("model", "claude-haiku-4-5")
     system_prompt = WEEKLY_SYSTEM_TEMPLATE.format(profile_md=profile_to_markdown(profile))
     payload = json.dumps(
-        {"items_shown_this_week": week_rows, "upcoming_deadlines": deadline_rows},
+        {
+            "items_shown_this_week": week_rows,
+            "upcoming_deadlines": deadline_rows,
+            "reading_candidates": reading_rows,
+        },
         ensure_ascii=False,
     )
     try:
@@ -327,6 +336,13 @@ def synthesize_week(
             for key in ("threads", "momentum", "top_items"):
                 if not isinstance(data.get(key), list):
                     data[key] = []
+            read = data.get("read_of_week")
+            valid_urls = {r["url"] for r in reading_rows}
+            data["read_of_week"] = (
+                read
+                if isinstance(read, dict) and read.get("title") and read.get("url") in valid_urls
+                else None
+            )
             data["deadline_note"] = str(data.get("deadline_note", "")).strip()
             return data
         except Exception as exc:  # noqa: BLE001

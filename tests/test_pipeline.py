@@ -118,6 +118,7 @@ def test_morning_reminder_flow(cfg, profile, store):
 def test_weekly_synthesis_and_fallback(cfg, profile, store):
     FakeSMTP.sent = []
     cfg = copy.deepcopy(cfg)
+    cfg["weekly_reading"] = {"enabled": False}  # no network in tests
     items = [make_item(f"w{i}", score=60 + i, why=f"why {i}") for i in range(3)]
     store.mark_seen(items)
     for i in items:

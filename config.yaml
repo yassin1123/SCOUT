@@ -41,40 +41,47 @@ sources:
     feeds:
       - "https://www.ft.com/technology?format=rss"
       - "https://www.ft.com/companies?format=rss"
-      # Markets is a background interest (weight 3) — enable if you want it:
-      # - "https://www.ft.com/markets?format=rss"
+      - "https://www.ft.com/markets?format=rss"
 
   ai_news:
     enabled: true
-    # Primary sources preferred over aggregators. Anthropic has no official
-    # RSS feed as of writing — its careers board is watched by the
-    # opportunities source instead. Add a feed URL here if one ships.
+    # Tech / startup / VC news. Primary sources preferred over aggregators.
+    # Anthropic has no official RSS feed as of writing — its careers board
+    # is watched by the opportunities source instead.
     feeds:
       - "https://openai.com/news/rss.xml"
       - "https://deepmind.google/blog/rss.xml"
       - "https://huggingface.co/blog/feed.xml"
       - "https://jack-clark.net/feed/"        # Import AI (Jack Clark)
+      - "https://techcrunch.com/feed/"        # startups, launches, funding rounds
+      - "https://sifted.eu/feed"              # European startups & VC
 
   uk_politics:
     enabled: true
     feeds:
       - "https://feeds.bbci.co.uk/news/politics/rss.xml"
       - "https://www.theguardian.com/politics/rss"
-    # Hard cap per brief — background context, not a politics newsletter.
-    max_items: 2
-    # Keyword gate: a politics story must hit one of these to even reach
-    # the ranker. Westminster noise never gets ranked.
+    # Hard cap per brief — a mix of major UK politics and business-relevant
+    # policy, never a politics newsletter.
+    max_items: 3
+    # Keyword gate: a politics story must hit one of these to even reach the
+    # ranker. Covers business/tech policy AND major national developments;
+    # pure personality/gossip pieces still get binned.
     keywords: [tech, technology, startup, start-up, AI, artificial intelligence,
                regulation, tax, budget, R&D, research, funding, investment,
-               defence, defense, procurement, visa, skilled worker, data,
-               digital, innovation, semiconductor, chips]
+               defence, defense, procurement, visa, immigration, skilled worker,
+               data, digital, innovation, semiconductor, chips, economy,
+               economic, spending, election, prime minister, chancellor,
+               government, parliament, bill, law, NHS, energy, housing,
+               interest rate, inflation, trade]
 
   opportunities:
     enabled: true
     # Best-effort by design — see README "Honest limits".
-    # Hackathon listing feeds (RSS). Extend with any feed you trust.
+    # Hackathon/event/job listing feeds (RSS). Extend with any feed you trust.
     feeds:
       - "https://devpost.com/hackathons.rss"
+      - "https://hnrss.org/jobs"              # YC startup job posts from Hacker News
     # Public Greenhouse job boards to watch (board token, not URL).
     greenhouse_boards: [anthropic]
     # A job title must hit one of these to be picked up.
@@ -107,6 +114,13 @@ ranking:
   # Update if you change model.
   price_per_mtok_input: 1.00
   price_per_mtok_output: 5.00
+
+# One good long-form read in the Sunday digest — never in the daily briefs.
+weekly_reading:
+  enabled: true
+  feeds:
+    - "https://fs.blog/feed/"          # Farnam Street
+    - "https://jamesclear.com/feed"    # James Clear
 
 mailer:
   smtp_host: "smtp.gmail.com"

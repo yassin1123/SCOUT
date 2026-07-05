@@ -14,6 +14,12 @@ SCOUT — WEEK OF {{ week_of|upper }}
   {{ t.why }}
 {% endfor %}
 {%- endif %}
+{%- if read_of_week %}
+== ONE GOOD READ ==
+{{ read_of_week.title }}
+  {{ read_of_week.why }}
+  {{ read_of_week.url }}
+{% endif %}
 {% if deadline_note %}
 ! {{ deadline_note }}
 {% endif %}

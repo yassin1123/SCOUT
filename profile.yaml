@@ -11,15 +11,16 @@
 
 interests:
   high:
-    - "AI and machine learning: papers, model releases, industry news"
-    - "edge / on-device AI: embedded inference, quantization, distillation, TensorRT-class tooling"
-    - "multi-agent systems and agentic tooling"
-    - "applied AI products and developer tooling"
-    - "defence and dual-use technology"
-    - "hardware-software integration, robotics, computer vision"
+    - "startups: new companies, launches, notable new projects and products"
+    - "venture capital and funding: new funds, startup rounds, accelerators, who's raising"
+    - "technology and AI: major products, model releases, industry news"
+    - "hackathons, competitions and tech/startup events worth attending —
+       London/UK in-person or online; in-person outside the UK is rarely worth flagging"
+    - "startup hiring: interesting roles at startups and AI companies"
   medium:
-    - "startups, venture funding and accelerators (UK and Europe)"
-    - "hackathons, competitions, and AI/engineering roles worth applying to"
-    - "AI and data regulation; UK policy that concretely touches tech, startups, funding or defence"
+    - "financial markets and macro: rates, big market moves, major deals"
+    - "UK politics: major government decisions and political developments,
+       especially where they touch the economy, business, tech or startups"
   low:
-    - "financial markets and macro, where it intersects with tech"
+    - "long-form ideas / self-improvement writing — occasional, weekly-digest material,
+       never core news"

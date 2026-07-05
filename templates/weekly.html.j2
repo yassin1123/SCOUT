@@ -22,6 +22,14 @@
   {% endfor %}
   {% endif %}
 
+  {% if read_of_week %}
+  <p style="font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#777;margin:22px 0 10px;border-bottom:1px solid #ececec;padding-bottom:5px;">One good read</p>
+  <div style="margin:0 0 14px;">
+    <a href="{{ read_of_week.url }}" style="font-size:15px;font-weight:600;color:#0b3d62;text-decoration:none;">{{ read_of_week.title }}</a>
+    <p style="margin:4px 0 0;font-size:14px;color:#222;">{{ read_of_week.why }}</p>
+  </div>
+  {% endif %}
+
   {% if deadline_note %}
   <div style="border-left:3px solid #b03a2e;background:#fbf4f3;padding:10px 14px;margin:22px 0 0;">
     <p style="margin:0;font-size:14px;color:#222;">{{ deadline_note }}</p>
